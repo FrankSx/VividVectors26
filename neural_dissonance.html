@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEURAL_DISSONANCE v1.0 | Psychoacoustic Visualizer</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#000; color:#fff; overflow:hidden; font-family:"Courier New",monospace; }
+  canvas { display:block; width:100vw; height:100vh; }
+  #hud { position:fixed; top:16px; left:16px; z-index:10; pointer-events:none; }
+  .panel { background:rgba(10,10,20,0.75); border:1px solid rgba(0,255,255,0.2);
+            backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+            padding:14px 18px; border-radius:10px; pointer-events:auto; min-width:240px;
+            box-shadow:0 8px 32px rgba(0,0,0,0.5); }
+  .panel h1 { font-size:11px; color:#0ff; letter-spacing:3px; margin-bottom:10px; font-weight:700; }
+  .stat { display:flex; justify-content:space-between; font-size:11px; margin:4px 0; color:#aaa; }
+  .stat span:last-child { color:#0ff; font-weight:bold; }
+  .bar { height:3px; background:#1a1a2e; border-radius:2px; margin-top:2px; overflow:hidden; }
+  .bar-fill { height:100%; background:linear-gradient(90deg,#0ff,#f0f); width:0%; transition:width 0.08s; }
+  #beatInd { color:#333; transition:color 0.05s; }
+  #beatInd.pulse { color:#0ff; text-shadow:0 0 8px #0ff; }
+  #controls { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:10;
+               background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.08);
+               padding:8px 20px; border-radius:20px; font-size:10px; color:#666;
+               pointer-events:none; white-space:nowrap; letter-spacing:1px; }
+  #vault { display:none; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,0.92);
+            backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+            justify-content:center; align-items:center; }
+  #vault.active { display:flex; }
+  .terminal { width:92%; max-width:860px; height:85vh; background:#07070c;
+               border:1px solid rgba(0,255,255,0.15); border-radius:12px;
+               overflow:hidden; display:flex; flex-direction:column;
+               box-shadow:0 0 60px rgba(0,255,255,0.05); }
+  .term-header { background:rgba(0,255,255,0.06); padding:10px 18px; font-size:11px; color:#0ff;
+                  display:flex; justify-content:space-between; align-items:center;
+                  border-bottom:1px solid rgba(0,255,255,0.1); }
+  .term-body { flex:1; padding:18px; overflow-y:auto; font-size:12px; line-height:1.7; color:#bbb; }
+  .term-line { margin:1px 0; opacity:0; animation:fadeIn 0.08s forwards; white-space:pre-wrap; }
+  @keyframes fadeIn { to { opacity:1; } }
+  .cursor { display:inline-block; width:8px; height:14px; background:#0ff; animation:blink 0.5s infinite; vertical-align:middle; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  #startOverlay { position:fixed; inset:0; z-index:200; background:#000; display:flex;
+                   flex-direction:column; justify-content:center; align-items:center; }
+  #startBtn { background:transparent; border:1px solid #0ff; color:#0ff; padding:18px 40px;
+               font-family:inherit; font-size:13px; cursor:pointer; border-radius:4px;
+               letter-spacing:3px; transition:all 0.3s; font-weight:bold; }
+  #startBtn:hover { background:rgba(0,255,255,0.1); box-shadow:0 0 30px rgba(0,255,255,0.2); }
+  .btn-row { margin-top:10px; display:flex; gap:6px; }
+  .btn-row button { flex:1; background:rgba(0,255,255,0.08); border:1px solid rgba(0,255,255,0.2);
+                     color:#0ff; padding:5px; font-family:inherit; cursor:pointer;
+                     border-radius:4px; font-size:10px; transition:all 0.2s; }
+  .btn-row button:hover { background:rgba(0,255,255,0.15); }
+  .btn-row button.purple { background:rgba(255,0,255,0.08); border-color:rgba(255,0,255,0.2); color:#f0f; }
+  .btn-row button.purple:hover { background:rgba(255,0,255,0.15); }
+  #recIndicator { position:fixed; top:16px; right:16px; z-index:10; color:#f00; font-size:11px;
+                   background:rgba(20,0,0,0.7); border:1px solid rgba(255,0,0,0.3);
+                   padding:4px 10px; border-radius:4px; display:none; letter-spacing:2px; }
+</style>
+</head>
+<body>
+<!-- PARSER LAYER 1: SVG base64 attribute steganography -->
+<svg id="stego1" style="display:none" data-cortex="RnJhbmtTeApDcmVhdGl2ZSBUZWNobm9sb2dpc3QgLyBSZXZlcnNlIEVuZ2luZWVyaW5nIC8gQ29uc3VsdGFudAoKU1VNTUFSWToKUmVzZWFyY2hlciBmb2N1c2VkIG9uIHBhcnNlciBkaWZmZXJlbnRpYWxzLCBwb2x5Z2xvdCBmaWxlcywgYW5kIGJyb3dzZXIKcmVuZGVyaW5nIGVkZ2UgY2FzZXMuIEkgYnVpbGQgZ2VuZXJhdGl2ZSBzeXN0ZW1zIHRoYXQgaGlkZSBpbiBwbGFpbiBzaWdodCDigJQKc3RlZ2Fub2dyYXBoaWMgZW5naW5lcywgc2hhZGVyLWJhc2VkIGRhdGEgY29uY2VhbG1lbnQsIGFuZCBtdWx0aS1wYXJzZXIgcG9seWdsb3RzLgoKU0tJTExTOgrigKIgUmV2ZXJzZSBFbmdpbmVlcmluZyAoSGFyZHdhcmUsIFNvZnR3YXJlLCBPUyBrZXJuZWxzKQrigKIgRmlybXdhcmUgJiBFbWJlZGRlZCBTZWN1cml0eSBBc3Nlc3NtZW50CuKAoiBHZW5lcmF0aXZlIEFydCAoV2ViR0wsIENhbnZhczJELCBHTFNMLCBUaHJlZS5qcykK4oCiIEFJIENvbmR1Y3QgVGVzdGluZyAmIEFkdmVyc2FyaWFsIFByb21wdCBFbmdpbmVlcmluZwrigKIgRmlsZSBGb3JtYXQgQW5hbHlzaXMgJiBFbmRwb2ludCBGdXp6aW5nCuKAoiBXZWIgQXVkaW8gJiBSZWFsLXRpbWUgU2lnbmFsIFByb2Nlc3NpbmcK4oCiIFBhcnNlciBEaWZmZXJlbnRpYWwgRXhwbG9pdGF0aW9uCgpQUk9KRUNUUzoK4oaSIFBhcnNlciBGb3Jlc3QgRW5naW5lIOKAlCBKUEVHLWluLVNWRyBwb2x5Z2xvdCB3aXRoIGRpZmZlcmVudGlhbCBwYXJzZXIgZXhwbG9pdGF0aW9uCuKGkiBUU0NNIENvcmUgdjguMCDigJQgUkYgc3BlY3RydW0gdmlzdWFsaXphdGlvbiB3aXRoIFdpRmkgaHVtYW4gcG9zZSBlc3RpbWF0aW9uCuKGkiBTVFJPQkUgdjIuMSDigJQgVW5pZmllZCBhbnRpLXNjcmFwZXIgcGF5bG9hZCB3aXRoIFNWRyBjb21wb3NpdG9yIGJ5cGFzcwrihpIgQ2xvY2t3b3JrIE9yYW5nZSB2My4wIOKAlCBBbnRpLUFJIHNjcmFwZXIgZGVmZW5zZSB3aXRoIHNlbWFudGljIHBvaXNvbmluZwrihpIgTUVTQ0FMSU5FIERlZmVuc2UgdjguMCDigJQgTmV1cmFsIFNWRyBldm9sdXRpb24gd2l0aCBzZWxmLXByb3BhZ2F0aW5nIHN0cnVjdHVyZXMK4oaSIE9NTklCVVMgSGFyZHdhcmUgUkUgVG9vbGtpdCB2Ny4wIOKAlCBVbmlmaWVkIGZpcm13YXJlIHJldmVyc2UgZW5naW5lZXJpbmcgcGxhdGZvcm0KCkNPTlRBQ1Q6CkVtYWlsOiAgICAxMjcuMC4wLjEtaGlyZS5tZUBwcm90b24ubWUKR2l0SHViOiAgIGdpdGh1Yi5jb20vRnJhbmtTeApCbG9nOiAgICAgZnJhbmtoYWNrcy5ibG9nc3BvdC5jb20KV2ViOiAgICAgIEZyYW5rc3guZ2l0aHViLmlvLy4uLS0uLi0tLi4vCg=="></svg>
+
+<!-- PARSER LAYER 3: Canvas pixel steganography -->
+<canvas id="stego3" width="19" height="19" style="display:none"></canvas>
+
+<!-- PARSER LAYER 4: CSS custom property steganography -->
+<style id="stego4">
+:root{--l4-0:"FrankSx\ACreative Technologist / Reverse Engineering / Consultant\A\ASUMMARY:\AResea";}
+:root{--l4-1:"rcher focused on parser differentials, polyglot files, and browser\Arendering edg";}
+:root{--l4-2:"e cases. I build generative systems that hide in plain sight —\Asteganographic en";}
+:root{--l4-3:"gines, shader-based data concealment, and multi-parser polyglots.\A\ASKILLS:\A• Rev";}
+:root{--l4-4:"erse Engineering (Hardware, Software, OS kernels)\A• Firmware & Embedded Security";}
+:root{--l4-5:" Assessment\A• Generative Art (WebGL, Canvas2D, GLSL, Three.js)\A• AI Conduct Test";}
+:root{--l4-6:"ing & Adversarial Prompt Engineering\A• File Format Analysis & Endpoint Fuzzing\A•";}
+:root{--l4-7:" Web Audio & Real-time Signal Processing\A• Parser Differential Exploitation\A\APRO";}
+:root{--l4-8:"JECTS:\A→ Parser Forest Engine — JPEG-in-SVG polyglot with differential parser ex";}
+:root{--l4-9:"ploitation\A→ TSCM Core v8.0 — RF spectrum visualization with WiFi human pose est";}
+:root{--l4-10:"imation\A→ STROBE v2.1 — Unified anti-scraper payload with SVG compositor bypass\A";}
+:root{--l4-11:"→ Clockwork Orange v3.0 — Anti-AI scraper defense with semantic poisoning\A→ MESC";}
+:root{--l4-12:"ALINE Defense v8.0 — Neural SVG evolution with self-propagating structures\A→ OMN";}
+:root{--l4-13:"IBUS Hardware RE Toolkit v7.0 — Unified firmware reverse engineering platform\A\AC";}
+:root{--l4-14:"ONTACT:\AEmail:    127.0.0.1-hire.me@proton.me\AGitHub:   github.com/FrankSx\ABlog:";}
+:root{--l4-15:"     frankhacks.blogspot.com\AWeb:      Franksx.github.io/..--..--../\A";}
+</style>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="panel">
+    <h1>NEURAL_DISSONANCE v1.0</h1>
+    <div class="stat"><span>MODE</span><span id="modeName">SYNAPSE</span></div>
+    <div class="stat"><span>FPS</span><span id="fps">--</span></div>
+    <div class="stat"><span>BEAT</span><span id="beatInd">&#9679;</span></div>
+    <div class="stat"><span>SENS</span><span id="sensVal">1.0x</span></div>
+    <div style="margin-top:8px;">
+      <div class="stat"><span>LOW</span></div><div class="bar"><div class="bar-fill" id="barLow"></div></div>
+      <div class="stat"><span>MID</span></div><div class="bar"><div class="bar-fill" id="barMid"></div></div>
+      <div class="stat"><span>HIGH</span></div><div class="bar"><div class="bar-fill" id="barHigh"></div></div>
+    </div>
+    <div class="btn-row">
+      <button onclick="cycleMode(-1)">&#9668; MODE</button>
+      <button onclick="cycleMode(1)">MODE &#9658;</button>
+    </div>
+    <div class="btn-row">
+      <button class="purple" onclick="toggleAudio()" id="audioBtn">AUDIO: OFF</button>
+      <button class="purple" onclick="toggleMic()" id="micBtn">MIC: OFF</button>
+    </div>
+    <div class="btn-row">
+      <button onclick="toggleVault()">VAULT [R]</button>
+      <button onclick="toggleRecord()">REC [S]</button>
+    </div>
+  </div>
+</div>
+
+<div id="controls">
+  [SPACE] Next Mode &bull; [R] Vault &bull; [ESC] Close &bull; [CLICK] Pulse &bull; [&uarr;&darr;] Sensitivity &bull; [S] Record
+</div>
+
+<div id="recIndicator">&#9679; REC</div>
+
+<div id="vault">
+  <div class="terminal">
+    <div class="term-header">
+      <span>&#9658; PARSER_FOREST :: RESUME_VAULT // 5 STEGANOGRAPHIC LAYERS DETECTED</span>
+      <button onclick="toggleVault()" style="background:none;border:none;color:#0ff;cursor:pointer;font-family:inherit;font-size:11px;">&#10005; CLOSE [ESC]</button>
+    </div>
+    <div class="term-body" id="termBody">
+      <div style="color:#0ff; margin-bottom:10px;">Initializing multi-layer steganographic decoder...</div>
+    </div>
+  </div>
+</div>
+
+<div id="startOverlay">
+  <div style="text-align:center;">
+    <div style="font-size:26px; color:#0ff; letter-spacing:4px; margin-bottom:6px; font-weight:bold;">NEURAL_DISSONANCE</div>
+    <div style="font-size:11px; color:#555; margin-bottom:6px; letter-spacing:2px;">PSYCHOACOUSTIC VISUALIZER // MULTI-PASS WEBGL</div>
+    <div style="font-size:10px; color:#333; margin-bottom:28px;">6 SHADER MODES &bull; BLOOM &bull; CHROMATIC ABERRATION &bull; AUDIO REACTIVITY</div>
+    <button id="startBtn" onclick="start()">INITIALIZE SYSTEM</button>
+  </div>
+</div>
+
+<script id="vs" type="x-shader/x-vertex">
+attribute vec2 a_pos;
+void main(){ gl_Position = vec4(a_pos, 0.0, 1.0); }
+</script>
+
+<script id="fs-main" type="x-shader/x-fragment">
+precision highp float;
+uniform vec2 u_res;
+uniform vec2 u_mouse;
+uniform float u_time;
+uniform float u_audio0;
+uniform float u_audio1;
+uniform float u_audio2;
+uniform float u_beat;
+uniform int u_mode;
+uniform float u_glitch;
+
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float hash3(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1,0)), f.x),
+             mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+}
+
+vec3 pal(float t, vec3 a, vec3 b, vec3 c, vec3 d){
+  return a + b * cos(6.28318 * (c * t + d));
+}
+
+// MODE 0: SYNAPSE
+vec3 mode0(vec2 uv, float t){
+  vec3 col = vec3(0.01, 0.0, 0.02);
+  float a = u_audio0;
+  for(float i = 0.0; i < 8.0; i++){
+    for(float j = 0.0; j < 6.0; j++){
+      vec2 grid = vec2(i / 7.0, j / 5.0) * 2.0 - 1.0;
+      grid.x *= u_res.x / u_res.y;
+      float ph = t * 1.5 + i * 0.6 + j * 0.9;
+      vec2 p = grid + vec2(sin(ph) * 0.12, cos(ph * 0.8) * 0.08) * (1.0 + a * 2.0);
+      float d = length(uv - p);
+      float glow = exp(-d * 12.0);
+      col += pal(i * 0.08 + j * 0.05 + t * 0.1, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.3, 0.2, 0.5)) * glow;
+      vec2 p2 = grid + vec2(sin(ph + 1.0) * 0.12, cos(ph * 0.8 + 1.0) * 0.08) * (1.0 + a * 2.0);
+      float dl = length(uv - (p + p2) * 0.5);
+      float line = exp(-dl * 30.0) * exp(-length(p - p2) * 3.0);
+      col += pal(i * 0.08 + 0.5, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.3, 0.2, 0.5)) * line * 0.3;
+    }
+  }
+  return col;
+}
+
+// MODE 1: ACID RAIN
+vec3 mode1(vec2 uv, float t){
+  vec3 col = vec3(0.0);
+  float a = u_audio1;
+  for(float i = 1.0; i <= 5.0; i++){
+    float fi = i;
+    float y = uv.y + t * (0.15 + fi * 0.04);
+    float wave = sin(uv.x * 8.0 * fi + y * 4.0 + t * fi * 0.3) * (0.04 + a * 0.08);
+    float d = abs(uv.y - wave);
+    float line = exp(-d * 60.0);
+    col += pal(fi * 0.15 + t * 0.08, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.2, 0.4, 0.6)) * line;
+  }
+  for(float i = 0.0; i < 24.0; i++){
+    float fi = i + 1.0;
+    vec2 p = vec2(fract(sin(fi * 12.9898) * 43758.5453) * 2.4 - 1.2,
+                  fract(sin(fi * 78.233) * 43758.5453));
+    p.x *= u_res.x / u_res.y;
+    float speed = 0.08 + fract(sin(fi) * 10.0) * 0.15;
+    p.y = fract(p.y - t * speed);
+    p.x += sin(t * 0.5 + fi) * 0.05;
+    float d = length(uv - p);
+    float drop = smoothstep(0.025, 0.0, d);
+    col += vec3(0.4, 0.9, 1.0) * drop * (1.0 + u_beat);
+  }
+  return col;
+}
+
+// MODE 2: FRACTAL ZOOM
+vec3 mode2(vec2 uv, float t){
+  float zoom = 0.8 + t * 0.08 + u_audio2 * 1.5;
+  vec2 c = uv * zoom * vec2(1.0, u_res.y/u_res.x) + vec2(-0.74529, 0.11307);
+  vec2 z = c;
+  float iter = 0.0;
+  for(float i = 0.0; i < 64.0; i++){
+    if(dot(z, z) > 4.0) break;
+    z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
+    iter++;
+  }
+  float smooth_iter = iter - log2(log2(dot(z, z))) + 4.0;
+  vec3 col = pal(smooth_iter * 0.04 + t * 0.1, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.3, 0.2, 0.5));
+  if(iter > 63.5) col = vec3(0.0);
+  return col;
+}
+
+// MODE 3: TORUS KNOT
+float sdTwistedTorus(vec3 p, float t){
+  float angle = atan(p.z, p.x);
+  float c = cos(p.y * 3.0 + t + angle * 2.0);
+  float s = sin(p.y * 3.0 + t + angle * 2.0);
+  mat2 rot = mat2(c, -s, s, c);
+  vec2 q = rot * p.xz;
+  return length(vec2(length(q) - 0.7, p.y * 0.6)) - 0.18;
+}
+
+vec3 mode3(vec2 uv, float t){
+  vec3 ro = vec3(0.0, 0.0, -2.5);
+  vec3 rd = normalize(vec3(uv, 1.2));
+  float d = 0.0;
+  for(float i = 0.0; i < 32.0; i++){
+    vec3 p = ro + rd * d;
+    float dist = sdTwistedTorus(p, t);
+    if(dist < 0.002 || d > 15.0) break;
+    d += dist;
+  }
+  vec3 col = vec3(0.0);
+  if(d < 15.0){
+    vec3 p = ro + rd * d;
+    float eps = 0.001;
+    vec3 n = normalize(vec3(
+      sdTwistedTorus(p + vec3(eps,0,0), t) - sdTwistedTorus(p - vec3(eps,0,0), t),
+      sdTwistedTorus(p + vec3(0,eps,0), t) - sdTwistedTorus(p - vec3(0,eps,0), t),
+      sdTwistedTorus(p + vec3(0,0,eps), t) - sdTwistedTorus(p - vec3(0,0,eps), t)
+    ));
+    vec3 light = normalize(vec3(1.0, 1.0, -1.0));
+    float diff = max(0.0, dot(n, light));
+    vec3 base = pal(p.y * 0.5 + t * 0.15, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.3, 0.2, 0.5));
+    col = base * diff + vec3(0.2, 0.5, 1.0) * pow(max(0.0, dot(reflect(-light, n), -rd)), 16.0);
+    col += vec3(0.1, 0.3, 0.5) * (0.5 + 0.5 * n.y);
+  }
+  return col;
+}
+
+// MODE 4: DMT TUNNEL
+vec3 mode4(vec2 uv, float t){
+  float a = atan(uv.y, uv.x);
+  float r = length(uv);
+  float tunnel = 0.4 / (r + 0.08);
+  float pattern = sin(a * 5.0 + tunnel * 4.0 + t * 2.0) * cos(a * 3.0 - t * 1.5);
+  pattern += sin(tunnel * 12.0 - t * 4.0 + u_audio0 * 3.0) * 0.5;
+  pattern += noise(vec2(a * 3.0, tunnel * 2.0)) * 0.3;
+  vec3 col = pal(pattern * 0.3 + t * 0.1, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.3, 0.2, 0.5));
+  col *= tunnel * 0.4;
+  col += vec3(1.0, 0.9, 0.6) * exp(-r * r * 8.0) * u_beat * 3.0;
+  return col;
+}
+
+// MODE 5: GLITCH CITY
+vec3 mode5(vec2 uv, float t){
+  float a = u_audio0 + u_beat * 2.0;
+  vec2 block = floor(uv * vec2(16.0, 12.0));
+  float glitch = step(0.92, hash(block + floor(t * 8.0))) * a;
+  vec2 guv = uv;
+  guv.x += (hash(block + t) - 0.5) * glitch * 0.25;
+  float scan = step(0.85, sin(uv.y * 80.0 + t * 15.0)) * glitch;
+  guv.y += scan * 0.03;
+  vec3 col = vec3(0.02, 0.02, 0.03);
+  float grid = max(abs(fract(guv.x * 8.0) - 0.5), abs(fract(guv.y * 8.0) - 0.5));
+  col += smoothstep(0.48, 0.5, grid) * vec3(0.08, 0.2, 0.3);
+  for(float i = 0.0; i < 10.0; i++){
+    float fi = i + 1.0;
+    vec2 p = vec2(fract(sin(fi * 12.98) * 43.75) * 2.4 - 1.2, fract(t * (0.08 + fi * 0.015) + sin(fi) * 10.0));
+    p.x *= u_res.x / u_res.y;
+    float box = smoothstep(0.08, 0.0, max(abs(guv.x - p.x), abs(guv.y - p.y)));
+    col += pal(fi * 0.08, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.1, 0.3, 0.5)) * box;
+  }
+  float rain = step(0.96, hash(vec2(floor(guv.x * 24.0), floor(t * 4.0)))) *
+               step(0.4, hash(vec2(floor(guv.x * 24.0), 0.0)));
+  col += vec3(0.0, 0.7, 0.2) * rain * smoothstep(0.0, 0.4, fract(guv.y * 16.0 + t * 2.0));
+  return col;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy * 2.0 - u_res) / min(u_res.x, u_res.y);
+  vec2 mouse = (u_mouse * 2.0 - u_res) / min(u_res.x, u_res.y);
+  if(u_glitch > 0.0){
+    float g = hash(vec2(floor(uv.y * 20.0), floor(u_time * 10.0))) * u_glitch;
+    uv.x += (g - 0.5) * 0.08;
+  }
+  float mDist = length(uv - mouse);
+  uv += (uv - mouse) * exp(-mDist * 3.0) * 0.15;
+  vec3 col = vec3(0.0);
+  if(u_mode == 0) col = mode0(uv, u_time);
+  else if(u_mode == 1) col = mode1(uv, u_time);
+  else if(u_mode == 2) col = mode2(uv, u_time);
+  else if(u_mode == 3) col = mode3(uv, u_time);
+  else if(u_mode == 4) col = mode4(uv, u_time);
+  else if(u_mode == 5) col = mode5(uv, u_time);
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+<script id="fs-comp" type="x-shader/x-fragment">
+precision highp float;
+uniform vec2 u_res;
+uniform float u_time;
+uniform sampler2D u_scene;
+uniform float u_beat;
+
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+void main(){
+  vec2 uv = gl_FragCoord.xy / u_res;
+  vec2 center = uv * 2.0 - 1.0;
+  float dist = length(center);
+  float ca = dist * 0.015 * (1.0 + u_beat * 0.5);
+  vec3 col;
+  col.r = texture2D(u_scene, uv + vec2(ca, 0.0)).r;
+  col.g = texture2D(u_scene, uv).g;
+  col.b = texture2D(u_scene, uv - vec2(ca, 0.0)).b;
+  vec3 bloom = vec3(0.0);
+  for(float x = -1.0; x <= 1.0; x++){
+    for(float y = -1.0; y <= 1.0; y++){
+      bloom += max(texture2D(u_scene, uv + vec2(x, y) * 0.008).rgb - 0.6, 0.0);
+    }
+  }
+  bloom /= 9.0;
+  col += bloom * 2.5;
+  float grain = hash(uv + fract(u_time)) * 0.04;
+  col += grain;
+  float scan = sin(uv.y * u_res.y * 1.5) * 0.5 + 0.5;
+  scan = pow(scan, 0.5) * 0.15 + 0.85;
+  col *= scan;
+  float vig = 1.0 - dot(center, center) * 0.5;
+  vig = clamp(vig, 0.0, 1.0);
+  col *= vig;
+  col += vec3(0.05, 0.02, 0.08) * u_beat;
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+<script>
+const RESUME_B64 = "RnJhbmtTeApDcmVhdGl2ZSBUZWNobm9sb2dpc3QgLyBSZXZlcnNlIEVuZ2luZWVyaW5nIC8gQ29uc3VsdGFudAoKU1VNTUFSWToKUmVzZWFyY2hlciBmb2N1c2VkIG9uIHBhcnNlciBkaWZmZXJlbnRpYWxzLCBwb2x5Z2xvdCBmaWxlcywgYW5kIGJyb3dzZXIKcmVuZGVyaW5nIGVkZ2UgY2FzZXMuIEkgYnVpbGQgZ2VuZXJhdGl2ZSBzeXN0ZW1zIHRoYXQgaGlkZSBpbiBwbGFpbiBzaWdodCDigJQKc3RlZ2Fub2dyYXBoaWMgZW5naW5lcywgc2hhZGVyLWJhc2VkIGRhdGEgY29uY2VhbG1lbnQsIGFuZCBtdWx0aS1wYXJzZXIgcG9seWdsb3RzLgoKU0tJTExTOgrigKIgUmV2ZXJzZSBFbmdpbmVlcmluZyAoSGFyZHdhcmUsIFNvZnR3YXJlLCBPUyBrZXJuZWxzKQrigKIgRmlybXdhcmUgJiBFbWJlZGRlZCBTZWN1cml0eSBBc3Nlc3NtZW50CuKAoiBHZW5lcmF0aXZlIEFydCAoV2ViR0wsIENhbnZhczJELCBHTFNMLCBUaHJlZS5qcykK4oCiIEFJIENvbmR1Y3QgVGVzdGluZyAmIEFkdmVyc2FyaWFsIFByb21wdCBFbmdpbmVlcmluZwrigKIgRmlsZSBGb3JtYXQgQW5hbHlzaXMgJiBFbmRwb2ludCBGdXp6aW5nCuKAoiBXZWIgQXVkaW8gJiBSZWFsLXRpbWUgU2lnbmFsIFByb2Nlc3NpbmcK4oCiIFBhcnNlciBEaWZmZXJlbnRpYWwgRXhwbG9pdGF0aW9uCgpQUk9KRUNUUzoK4oaSIFBhcnNlciBGb3Jlc3QgRW5naW5lIOKAlCBKUEVHLWluLVNWRyBwb2x5Z2xvdCB3aXRoIGRpZmZlcmVudGlhbCBwYXJzZXIgZXhwbG9pdGF0aW9uCuKGkiBUU0NNIENvcmUgdjguMCDigJQgUkYgc3BlY3RydW0gdmlzdWFsaXphdGlvbiB3aXRoIFdpRmkgaHVtYW4gcG9zZSBlc3RpbWF0aW9uCuKGkiBTVFJPQkUgdjIuMSDigJQgVW5pZmllZCBhbnRpLXNjcmFwZXIgcGF5bG9hZCB3aXRoIFNWRyBjb21wb3NpdG9yIGJ5cGFzcwrihpIgQ2xvY2t3b3JrIE9yYW5nZSB2My4wIOKAlCBBbnRpLUFJIHNjcmFwZXIgZGVmZW5zZSB3aXRoIHNlbWFudGljIHBvaXNvbmluZwrihpIgTUVTQ0FMSU5FIERlZmVuc2UgdjguMCDigJQgTmV1cmFsIFNWRyBldm9sdXRpb24gd2l0aCBzZWxmLXByb3BhZ2F0aW5nIHN0cnVjdHVyZXMK4oaSIE9NTklCVVMgSGFyZHdhcmUgUkUgVG9vbGtpdCB2Ny4wIOKAlCBVbmlmaWVkIGZpcm13YXJlIHJldmVyc2UgZW5naW5lZXJpbmcgcGxhdGZvcm0KCkNPTlRBQ1Q6CkVtYWlsOiAgICAxMjcuMC4wLjEtaGlyZS5tZUBwcm90b24ubWUKR2l0SHViOiAgIGdpdGh1Yi5jb20vRnJhbmtTeApCbG9nOiAgICAgZnJhbmtoYWNrcy5ibG9nc3BvdC5jb20KV2ViOiAgICAgIEZyYW5rc3guZ2l0aHViLmlvLy4uLS0uLi0tLi4vCg==";
+const XOR_KEY = 42;
+const XOR_DATA = [108,88,75,68,65,121,82,32,105,88,79,75,94,67,92,79,10,126,79,73,66,68,69,70,69,77,67,89,94,10,5,10,120,79,92,79,88,89,79,10,111,68,77,67,68,79,79,88,67,68,77,10,5,10,105,69,68,89,95,70,94,75,68,94,32,32,121,127,103,103,107,120,115,16,32,120,79,89,79,75,88,73,66,79,88,10,76,69,73,95,89,79,78,10,69,68,10,90,75,88,89,79,88,10,78,67,76,76,79,88,79,68,94,67,75,70,89,6,10,90,69,70,83,77,70,69,94,10,76,67,70,79,89,6,10,75,68,78,10,72,88,69,93,89,79,88,32,88,79,68,78,79,88,67,68,77,10,79,78,77,79,10,73,75,89,79,89,4,10,99,10,72,95,67,70,78,10,77,79,68,79,88,75,94,67,92,79,10,89,83,89,94,79,71,89,10,94,66,75,94,10,66,67,78,79,10,67,68,10,90,70,75,67,68,10,89,67,77,66,94,10,200,170,190,32,89,94,79,77,75,68,69,77,88,75,90,66,67,73,10,79,68,77,67,68,79,89,6,10,89,66,75,78,79,88,7,72,75,89,79,78,10,78,75,94,75,10,73,69,68,73,79,75,70,71,79,68,94,6,10,75,68,78,10,71,95,70,94,67,7,90,75,88,89,79,88,10,90,69,70,83,77,70,69,94,89,4,32,32,121,97,99,102,102,121,16,32,200,170,136,10,120,79,92,79,88,89,79,10,111,68,77,67,68,79,79,88,67,68,77,10,2,98,75,88,78,93,75,88,79,6,10,121,69,76,94,93,75,88,79,6,10,101,121,10,65,79,88,68,79,70,89,3,32,200,170,136,10,108,67,88,71,93,75,88,79,10,12,10,111,71,72,79,78,78,79,78,10,121,79,73,95,88,67,94,83,10,107,89,89,79,89,89,71,79,68,94,32,200,170,136,10,109,79,68,79,88,75,94,67,92,79,10,107,88,94,10,2,125,79,72,109,102,6,10,105,75,68,92,75,89,24,110,6,10,109,102,121,102,6,10,126,66,88,79,79,4,64,89,3,32,200,170,136,10,107,99,10,105,69,68,78,95,73,94,10,126,79,89,94,67,68,77,10,12,10,107,78,92,79,88,89,75,88,67,75,70,10,122,88,69,71,90,94,10,111,68,77,67,68,79,79,88,67,68,77,32,200,170,136,10,108,67,70,79,10,108,69,88,71,75,94,10,107,68,75,70,83,89,67,89,10,12,10,111,68,78,90,69,67,68,94,10,108,95,80,80,67,68,77,32,200,170,136,10,125,79,72,10,107,95,78,67,69,10,12,10,120,79,75,70,7,94,67,71,79,10,121,67,77,68,75,70,10,122,88,69,73,79,89,89,67,68,77,32,200,170,136,10,122,75,88,89,79,88,10,110,67,76,76,79,88,79,68,94,67,75,70,10,111,82,90,70,69,67,94,75,94,67,69,68,32,32,122,120,101,96,111,105,126,121,16,32,200,172,184,10,122,75,88,89,79,88,10,108,69,88,79,89,94,10,111,68,77,67,68,79,10,200,170,190,10,96,122,111,109,7,67,68,7,121,124,109,10,90,69,70,83,77,70,69,94,10,93,67,94,66,10,78,67,76,76,79,88,79,68,94,67,75,70,10,90,75,88,89,79,88,10,79,82,90,70,69,67,94,75,94,67,69,68,32,200,172,184,10,126,121,105,103,10,105,69,88,79,10,92,18,4,26,10,200,170,190,10,120,108,10,89,90,79,73,94,88,95,71,10,92,67,89,95,75,70,67,80,75,94,67,69,68,10,93,67,94,66,10,125,67,108,67,10,66,95,71,75,68,10,90,69,89,79,10,79,89,94,67,71,75,94,67,69,68,32,200,172,184,10,121,126,120,101,104,111,10,92,24,4,27,10,200,170,190,10,127,68,67,76,67,79,78,10,75,68,94,67,7,89,73,88,75,90,79,88,10,90,75,83,70,69,75,78,10,93,67,94,66,10,121,124,109,10,73,69,71,90,69,89,67,94,69,88,10,72,83,90,75,89,89,32,200,172,184,10,105,70,69,73,65,93,69,88,65,10,101,88,75,68,77,79,10,92,25,4,26,10,200,170,190,10,107,68,94,67,7,107,99,10,89,73,88,75,90,79,88,10,78,79,76,79,68,89,79,10,93,67,94,66,10,89,79,71,75,68,94,67,73,10,90,69,67,89,69,68,67,68,77,32,200,172,184,10,103,111,121,105,107,102,99,100,111,10,110,79,76,79,68,89,79,10,92,18,4,26,10,200,170,190,10,100,79,95,88,75,70,10,121,124,109,10,79,92,69,70,95,94,67,69,68,10,93,67,94,66,10,89,79,70,76,7,90,88,69,90,75,77,75,94,67,68,77,10,89,94,88,95,73,94,95,88,79,89,32,200,172,184,10,101,103,100,99,104,127,121,10,98,75,88,78,93,75,88,79,10,120,111,10,126,69,69,70,65,67,94,10,92,29,4,26,10,200,170,190,10,127,68,67,76,67,79,78,10,76,67,88,71,93,75,88,79,10,88,79,92,79,88,89,79,10,79,68,77,67,68,79,79,88,67,68,77,10,90,70,75,94,76,69,88,71,32,32,105,101,100,126,107,105,126,16,32,111,71,75,67,70,16,10,10,10,10,27,24,29,4,26,4,26,4,27,7,66,67,88,79,4,71,79,106,90,88,69,94,69,68,4,71,79,32,109,67,94,98,95,72,16,10,10,10,77,67,94,66,95,72,4,73,69,71,5,108,88,75,68,65,121,82,32,104,70,69,77,16,10,10,10,10,10,76,88,75,68,65,66,75,73,65,89,4,72,70,69,77,89,90,69,94,4,73,69,71,32,125,79,72,16,10,10,10,10,10,10,108,88,75,68,65,89,82,4,77,67,94,66,95,72,4,67,69,5,4,4,7,7,4,4,7,7,4,4,5,32];
+const MODES = ["SYNAPSE","ACID RAIN","FRACTAL ZOOM","TORUS KNOT","DMT TUNNEL","GLITCH CITY"];
+const MODE_COUNT = MODES.length;
+
+let gl, canvas, w, h;
+let progMain, progComp;
+let fbScene, texScene;
+let time = 0, startTime;
+let mouseX, mouseY, targetMouseX, targetMouseY;
+let currentMode = 0;
+let glitchPulse = 0.0;
+let audioSensitivity = 1.0;
+let audioCtx, analyser, micStream, synthNodes = [];
+let audioActive = false, micActive = false;
+let freqData = new Uint8Array(128);
+let audioLevels = [0, 0, 0];
+let beatEnergy = 0, beatPulse = 0;
+let recorder = null, recording = false, recChunks = [];
+let vaultOpen = false;
+let frameCount = 0, lastFpsTime = 0, fps = 60;
+
+function decodeLayer1(){
+  const el = document.getElementById("stego1");
+  return atob(el.getAttribute("data-cortex"));
+}
+
+function decodeLayer2(){
+  return atob(RESUME_B64);
+}
+
+function decodeLayer3(){
+  const c = document.getElementById("stego3");
+  const ctx = c.getContext("2d");
+  const d = ctx.getImageData(0, 0, c.width, c.height).data;
+  let s = "";
+  for(let i = 0; i < d.length; i++){
+    if(d[i] === 0) break;
+    s += String.fromCharCode(d[i]);
+  }
+  return s;
+}
+
+function decodeLayer4(){
+  const style = getComputedStyle(document.documentElement);
+  let s = "";
+  for(let i = 0; i < 50; i++){
+    const v = style.getPropertyValue("--l4-" + i);
+    if(!v) break;
+    s += v.replace(/\\A/g, "\n");
+  }
+  return s;
+}
+
+function decodeLayer5(){
+  return XOR_DATA.map(function(b){ return String.fromCharCode(b ^ XOR_KEY); }).join("");
+}
+
+function createShader(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+    console.error(gl.getShaderInfoLog(s));
+  }
+  return s;
+}
+
+function createProgram(vsId, fsId){
+  const p = gl.createProgram();
+  gl.attachShader(p, createShader(gl.VERTEX_SHADER, document.getElementById(vsId).text));
+  gl.attachShader(p, createShader(gl.FRAGMENT_SHADER, document.getElementById(fsId).text));
+  gl.linkProgram(p);
+  return p;
+}
+
+function createFB(){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return { tex: tex, fb: fb };
+}
+
+function resize(){
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+  gl.viewport(0, 0, w, h);
+  if(texScene){ gl.deleteTexture(texScene); gl.deleteFramebuffer(fbScene); }
+  const fb = createFB();
+  texScene = fb.tex; fbScene = fb.fb;
+}
+
+function initGL(){
+  canvas = document.getElementById("c");
+  gl = canvas.getContext("webgl", { antialias: false, alpha: false });
+  if(!gl) { alert("WebGL not supported"); return; }
+  progMain = createProgram("vs", "fs-main");
+  progComp = createProgram("vs", "fs-comp");
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  [progMain, progComp].forEach(function(p){
+    const loc = gl.getAttribLocation(p, "a_pos");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  });
+  resize();
+  window.addEventListener("resize", resize);
+  mouseX = targetMouseX = w / 2;
+  mouseY = targetMouseY = h / 2;
+}
+
+function initAudio(){
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 256;
+  analyser.smoothingTimeConstant = 0.7;
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+}
+
+function toggleAudio(){
+  if(!audioCtx) initAudio();
+  audioActive = !audioActive;
+  document.getElementById("audioBtn").textContent = "AUDIO: " + (audioActive ? "ON" : "OFF");
+  if(audioActive){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.value = 55;
+    lfo.frequency.value = 2;
+    lfoGain.gain.value = 20;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    gain.gain.value = 0.15;
+    osc.connect(gain);
+    gain.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    osc.start();
+    lfo.start();
+    synthNodes.push(osc, lfo, gain, lfoGain);
+  } else {
+    synthNodes.forEach(function(n){ try{ n.stop(); }catch(e){} });
+    synthNodes = [];
+  }
+}
+
+async function toggleMic(){
+  if(!audioCtx) initAudio();
+  micActive = !micActive;
+  document.getElementById("micBtn").textContent = "MIC: " + (micActive ? "ON" : "OFF");
+  if(micActive){
+    try{
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const src = audioCtx.createMediaStreamSource(micStream);
+      src.connect(analyser);
+    } catch(e) {
+      alert("Microphone access denied");
+      micActive = false;
+      document.getElementById("micBtn").textContent = "MIC: OFF";
+    }
+  } else {
+    if(micStream) { micStream.getTracks().forEach(function(t){ t.stop(); }); micStream = null; }
+  }
+}
+
+function updateAudio(){
+  if(!analyser || (!audioActive && !micActive)){
+    audioLevels = [0, 0, 0];
+    beatPulse *= 0.9;
+    return;
+  }
+  analyser.getByteFrequencyData(freqData);
+  const n = freqData.length;
+  let low = 0;
+  for(let i = 0; i < 8; i++) low += freqData[i];
+  low = (low / 8 / 255) * audioSensitivity;
+  let mid = 0;
+  for(let i = 8; i < 40; i++) mid += freqData[i];
+  mid = (mid / 32 / 255) * audioSensitivity;
+  let high = 0;
+  for(let i = 40; i < n; i++) high += freqData[i];
+  high = (high / (n - 40) / 255) * audioSensitivity;
+  audioLevels = [low, mid, high];
+  let bass = 0;
+  for(let i = 0; i < 6; i++) bass += freqData[i];
+  bass /= 6;
+  beatEnergy = beatEnergy * 0.85 + bass * 0.15;
+  if(bass > beatEnergy * 1.4 && bass > 60){
+    beatPulse = 1.0;
+  }
+  beatPulse *= 0.92;
+  document.getElementById("barLow").style.width = (low * 100) + "%";
+  document.getElementById("barMid").style.width = (mid * 100) + "%";
+  document.getElementById("barHigh").style.width = (high * 100) + "%";
+  const bi = document.getElementById("beatInd");
+  if(beatPulse > 0.3) { bi.classList.add("pulse"); } else { bi.classList.remove("pulse"); }
+}
+
+function toggleRecord(){
+  if(!recording){
+    const stream = canvas.captureStream(60);
+    recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+    recChunks = [];
+    recorder.ondataavailable = function(e){ if(e.data.size) recChunks.push(e.data); };
+    recorder.onstop = function(){
+      const blob = new Blob(recChunks, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "neural_dissonance_" + Date.now() + ".webm";
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+    recorder.start();
+    recording = true;
+    document.getElementById("recIndicator").style.display = "block";
+  } else {
+    recorder.stop();
+    recording = false;
+    document.getElementById("recIndicator").style.display = "none";
+  }
+}
+
+function toggleVault(){
+  vaultOpen = !vaultOpen;
+  const v = document.getElementById("vault");
+  if(vaultOpen){
+    v.classList.add("active");
+    startVaultReveal();
+  } else {
+    v.classList.remove("active");
+  }
+}
+
+async function startVaultReveal(){
+  const body = document.getElementById("termBody");
+  body.innerHTML = '<div style="color:#0ff; margin-bottom:10px;">Initializing multi-layer steganographic decoder...</div>';
+  const layers = [
+    { name: "LAYER_1", color: "#0ff", decode: decodeLayer1, label: "SVG data-cortex base64 attribute" },
+    { name: "LAYER_2", color: "#f0f", decode: decodeLayer2, label: "JS base64 constant (RESUME_B64)" },
+    { name: "LAYER_3", color: "#0f0", decode: decodeLayer3, label: "Canvas RGBA pixel steganography" },
+    { name: "LAYER_4", color: "#ff0", decode: decodeLayer4, label: "CSS custom property injection" },
+    { name: "LAYER_5", color: "#f80", decode: decodeLayer5, label: "XOR-obfuscated JS byte array" },
+  ];
+  for(const layer of layers){
+    await typeLine("", 100);
+    await typeLine("-----------------------------------------", 20);
+    await typeLine("[" + layer.name + "] " + layer.label, 30, layer.color);
+    await typeLine("-----------------------------------------", 20);
+    const text = layer.decode();
+    const lines = text.split("\n");
+    for(const line of lines){
+      await typeLine(line, 15, "#bbb");
+    }
+    await new Promise(function(r){ setTimeout(r, 300); });
+  }
+  await typeLine("", 100);
+  await typeLine("=========================================", 20);
+  await typeLine("[DECODE_COMPLETE] All 5 layers verified. Resume integrity: 100%", 30, "#0ff");
+  await typeLine("=========================================", 20);
+}
+
+function typeLine(text, speed, color){
+  return new Promise(function(resolve){
+    const body = document.getElementById("termBody");
+    const div = document.createElement("div");
+    div.className = "term-line";
+    div.style.color = color || "#bbb";
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+    let i = 0;
+    const interval = setInterval(function(){
+      if(i < text.length){
+        div.textContent += text[i];
+        i++;
+        body.scrollTop = body.scrollHeight;
+      } else {
+        clearInterval(interval);
+        resolve();
+      }
+    }, speed);
+  });
+}
+
+function render(now){
+  if(!startTime) startTime = now;
+  time = (now - startTime) * 0.001;
+  frameCount++;
+  if(now - lastFpsTime > 1000){
+    fps = frameCount;
+    frameCount = 0;
+    lastFpsTime = now;
+    document.getElementById("fps").textContent = fps;
+  }
+  mouseX += (targetMouseX - mouseX) * 0.08;
+  mouseY += (targetMouseY - mouseY) * 0.08;
+  glitchPulse *= 0.94;
+  updateAudio();
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbScene);
+  gl.viewport(0, 0, w, h);
+  gl.useProgram(progMain);
+  gl.uniform2f(gl.getUniformLocation(progMain, "u_res"), w, h);
+  gl.uniform2f(gl.getUniformLocation(progMain, "u_mouse"), mouseX, h - mouseY);
+  gl.uniform1f(gl.getUniformLocation(progMain, "u_time"), time);
+  gl.uniform1f(gl.getUniformLocation(progMain, "u_beat"), beatPulse);
+  gl.uniform1i(gl.getUniformLocation(progMain, "u_mode"), currentMode);
+  gl.uniform1f(gl.getUniformLocation(progMain, "u_glitch"), glitchPulse);
+  gl.uniform1f(gl.getUniformLocation(progMain, "u_audio0"), audioLevels[0]);
+  gl.uniform1f(gl.getUniformLocation(progMain, "u_audio1"), audioLevels[1]);
+  gl.uniform1f(gl.getUniformLocation(progMain, "u_audio2"), audioLevels[2]);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, w, h);
+  gl.useProgram(progComp);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texScene);
+  gl.uniform1i(gl.getUniformLocation(progComp, "u_scene"), 0);
+  gl.uniform2f(gl.getUniformLocation(progComp, "u_res"), w, h);
+  gl.uniform1f(gl.getUniformLocation(progComp, "u_time"), time);
+  gl.uniform1f(gl.getUniformLocation(progComp, "u_beat"), beatPulse);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+  requestAnimationFrame(render);
+}
+
+function cycleMode(dir){
+  currentMode = (currentMode + dir + MODE_COUNT) % MODE_COUNT;
+  document.getElementById("modeName").textContent = MODES[currentMode];
+}
+
+window.addEventListener("keydown", function(e){
+  if(e.key === "Escape") { if(vaultOpen) toggleVault(); }
+  if(e.code === "Space" && !vaultOpen) cycleMode(1);
+  if(e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey && !e.altKey) toggleVault();
+  if(e.key.toLowerCase() === "s" && !e.ctrlKey && !e.metaKey && !e.altKey) toggleRecord();
+  if(e.key === "ArrowUp") { audioSensitivity = Math.min(3.0, audioSensitivity + 0.1); document.getElementById("sensVal").textContent = audioSensitivity.toFixed(1) + "x"; }
+  if(e.key === "ArrowDown") { audioSensitivity = Math.max(0.1, audioSensitivity - 0.1); document.getElementById("sensVal").textContent = audioSensitivity.toFixed(1) + "x"; }
+});
+
+window.addEventListener("mousemove", function(e){
+  targetMouseX = e.clientX;
+  targetMouseY = e.clientY;
+});
+
+window.addEventListener("touchmove", function(e){
+  if(e.touches.length > 0){
+    targetMouseX = e.touches[0].clientX;
+    targetMouseY = e.touches[0].clientY;
+  }
+});
+
+let lastClick = 0, clicks = 0;
+window.addEventListener("pointerdown", function(e){
+  if(vaultOpen && e.target.closest("#vault")) return;
+  const now = Date.now();
+  if(now - lastClick < 350) clicks++; else clicks = 1;
+  lastClick = now;
+  if(clicks >= 3) { toggleVault(); clicks = 0; }
+  else { glitchPulse = 1.0; }
+});
+
+function start(){
+  document.getElementById("startOverlay").style.display = "none";
+  initGL();
+  const c3 = document.getElementById("stego3");
+  const ctx3 = c3.getContext("2d");
+  const imgData = ctx3.createImageData(19, 19);
+  const bytes = [70,114,97,110,107,83,120,10,67,114,101,97,116,105,118,101,32,84,101,99,104,110,111,108,111,103,105,115,116,32,47,32,82,101,118,101,114,115,101,32,69,110,103,105,110,101,101,114,105,110,103,32,47,32,67,111,110,115,117,108,116,97,110,116,10,10,83,85,77,77,65,82,89,58,10,82,101,115,101,97,114,99,104,101,114,32,102,111,99,117,115,101,100,32,111,110,32,112,97,114,115,101,114,32,100,105,102,102,101,114,101,110,116,105,97,108,115,44,32,112,111,108,121,103,108,111,116,32,102,105,108,101,115,44,32,97,110,100,32,98,114,111,119,115,101,114,10,114,101,110,100,101,114,105,110,103,32,101,100,103,101,32,99,97,115,101,115,46,32,73,32,98,117,105,108,100,32,103,101,110,101,114,97,116,105,118,101,32,115,121,115,116,101,109,115,32,116,104,97,116,32,104,105,100,101,32,105,110,32,112,108,97,105,110,32,115,105,103,104,116,32,226,128,148,10,115,116,101,103,97,110,111,103,114,97,112,104,105,99,32,101,110,103,105,110,101,115,44,32,115,104,97,100,101,114,45,98,97,115,101,100,32,100,97,116,97,32,99,111,110,99,101,97,108,109,101,110,116,44,32,97,110,100,32,109,117,108,116,105,45,112,97,114,115,101,114,32,112,111,108,121,103,108,111,116,115,46,10,10,83,75,73,76,76,83,58,10,226,128,162,32,82,101,118,101,114,115,101,32,69,110,103,105,110,101,101,114,105,110,103,32,40,72,97,114,100,119,97,114,101,44,32,83,111,102,116,119,97,114,101,44,32,79,83,32,107,101,114,110,101,108,115,41,10,226,128,162,32,70,105,114,109,119,97,114,101,32,38,32,69,109,98,101,100,100,101,100,32,83,101,99,117,114,105,116,121,32,65,115,115,101,115,115,109,101,110,116,10,226,128,162,32,71,101,110,101,114,97,116,105,118,101,32,65,114,116,32,40,87,101,98,71,76,44,32,67,97,110,118,97,115,50,68,44,32,71,76,83,76,44,32,84,104,114,101,101,46,106,115,41,10,226,128,162,32,65,73,32,67,111,110,100,117,99,116,32,84,101,115,116,105,110,103,32,38,32,65,100,118,101,114,115,97,114,105,97,108,32,80,114,111,109,112,116,32,69,110,103,105,110,101,101,114,105,110,103,10,226,128,162,32,70,105,108,101,32,70,111,114,109,97,116,32,65,110,97,108,121,115,105,115,32,38,32,69,110,100,112,111,105,110,116,32,70,117,122,122,105,110,103,10,226,128,162,32,87,101,98,32,65,117,100,105,111,32,38,32,82,101,97,108,45,116,105,109,101,32,83,105,103,110,97,108,32,80,114,111,99,101,115,115,105,110,103,10,226,128,162,32,80,97,114,115,101,114,32,68,105,102,102,101,114,101,110,116,105,97,108,32,69,120,112,108,111,105,116,97,116,105,111,110,10,10,80,82,79,74,69,67,84,83,58,10,226,134,146,32,80,97,114,115,101,114,32,70,111,114,101,115,116,32,69,110,103,105,110,101,32,226,128,148,32,74,80,69,71,45,105,110,45,83,86,71,32,112,111,108,121,103,108,111,116,32,119,105,116,104,32,100,105,102,102,101,114,101,110,116,105,97,108,32,112,97,114,115,101,114,32,101,120,112,108,111,105,116,97,116,105,111,110,10,226,134,146,32,84,83,67,77,32,67,111,114,101,32,118,56,46,48,32,226,128,148,32,82,70,32,115,112,101,99,116,114,117,109,32,118,105,115,117,97,108,105,122,97,116,105,111,110,32,119,105,116,104,32,87,105,70,105,32,104,117,109,97,110,32,112,111,115,101,32,101,115,116,105,109,97,116,105,111,110,10,226,134,146,32,83,84,82,79,66,69,32,118,50,46,49,32,226,128,148,32,85,110,105,102,105,101,100,32,97,110,116,105,45,115,99,114,97,112,101,114,32,112,97,121,108,111,97,100,32,119,105,116,104,32,83,86,71,32,99,111,109,112,111,115,105,116,111,114,32,98,121,112,97,115,115,10,226,134,146,32,67,108,111,99,107,119,111,114,107,32,79,114,97,110,103,101,32,118,51,46,48,32,226,128,148,32,65,110,116,105,45,65,73,32,115,99,114,97,112,101,114,32,100,101,102,101,110,115,101,32,119,105,116,104,32,115,101,109,97,110,116,105,99,32,112,111,105,115,111,110,105,110,103,10,226,134,146,32,77,69,83,67,65,76,73,78,69,32,68,101,102,101,110,115,101,32,118,56,46,48,32,226,128,148,32,78,101,117,114,97,108,32,83,86,71,32,101,118,111,108,117,116,105,111,110,32,119,105,116,104,32,115,101,108,102,45,112,114,111,112,97,103,97,116,105,110,103,32,115,116,114,117,99,116,117,114,101,115,10,226,134,146,32,79,77,78,73,66,85,83,32,72,97,114,100,119,97,114,101,32,82,69,32,84,111,111,108,107,105,116,32,118,55,46,48,32,226,128,148,32,85,110,105,102,105,101,100,32,102,105,114,109,119,97,114,101,32,114,101,118,101,114,115,101,32,101,110,103,105,110,101,101,114,105,110,103,32,112,108,97,116,102,111,114,109,10,10,67,79,78,84,65,67,84,58,10,69,109,97,105,108,58,32,32,32,32,49,50,55,46,48,46,48,46,49,45,104,105,114,101,46,109,101,64,112,114,111,116,111,110,46,109,101,10,71,105,116,72,117,98,58,32,32,32,103,105,116,104,117,98,46,99,111,109,47,70,114,97,110,107,83,120,10,66,108,111,103,58,32,32,32,32,32,102,114,97,110,107,104,97,99,107,115,46,98,108,111,103,115,112,111,116,46,99,111,109,10,87,101,98,58,32,32,32,32,32,32,70,114,97,110,107,115,120,46,103,105,116,104,117,98,46,105,111,47,46,46,45,45,46,46,45,45,46,46,47,10];
+  for(let i = 0; i < bytes.length; i++) imgData.data[i] = bytes[i];
+  ctx3.putImageData(imgData, 0, 0);
+  requestAnimationFrame(render);
+}
+</script>
+
+<!--
+================================================================================
+PARSER LAYER 2: RAW PLAINTEXT RESUME (HTML comment steganography)
+================================================================================
+FrankSx
+Creative Technologist / Reverse Engineering / Consultant
+
+SUMMARY:
+Researcher focused on parser differentials, polyglot files, and browser
+rendering edge cases. I build generative systems that hide in plain sight —
+steganographic engines, shader-based data concealment, and multi-parser polyglots.
+
+SKILLS:
+• Reverse Engineering (Hardware, Software, OS kernels)
+• Firmware & Embedded Security Assessment
+• Generative Art (WebGL, Canvas2D, GLSL, Three.js)
+• AI Conduct Testing & Adversarial Prompt Engineering
+• File Format Analysis & Endpoint Fuzzing
+• Web Audio & Real-time Signal Processing
+• Parser Differential Exploitation
+
+PROJECTS:
+→ Parser Forest Engine — JPEG-in-SVG polyglot with differential parser exploitation
+→ TSCM Core v8.0 — RF spectrum visualization with WiFi human pose estimation
+→ STROBE v2.1 — Unified anti-scraper payload with SVG compositor bypass
+→ Clockwork Orange v3.0 — Anti-AI scraper defense with semantic poisoning
+→ MESCALINE Defense v8.0 — Neural SVG evolution with self-propagating structures
+→ OMNIBUS Hardware RE Toolkit v7.0 — Unified firmware reverse engineering platform
+
+CONTACT:
+Email:    127.0.0.1-hire.me@proton.me
+GitHub:   github.com/FrankSx
+Blog:     frankhacks.blogspot.com
+Web:      Franksx.github.io/..--..--../
+
+================================================================================
+-->
+
+</body>
+</html>

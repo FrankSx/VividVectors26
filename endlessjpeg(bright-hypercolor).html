@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Endless JPEG</title>
+<meta name="color-scheme" content="dark">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #000;
+    color: #e5e7eb;
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+  #stage {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #050508;
+  }
+  #stage image {
+    width: 100%;
+    height: 100%;
+    transform: scale(1.02);
+    filter: contrast(1.05) saturate(1.1);
+    image-rendering: auto;
+  }
+  .hud {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    background: rgba(6,6,10,0.72);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 14px 16px 12px;
+    min-width: 230px;
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .title {
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    font-size: 13px;
+    margin-bottom: 12px;
+    color: #fafafa;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .title span {
+    color: #9ca3af;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 10px #ef4444aa;
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.85); }
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px 16px;
+  }
+  .grid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #71717a;
+  }
+  value {
+    font-size: 15px;
+    color: #f4f4f5;
+    font-variant-numeric: tabular-nums;
+  }
+  .pipeline {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    font-size: 10px;
+    color: #7a7a82;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%);
+    z-index: 5;
+  }
+  .grain {
+    position: fixed;
+    inset: -20%;
+    pointer-events: none;
+    z-index: 6;
+    opacity: 0.035;
+    mix-blend-mode: screen;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: drift 8s linear infinite;
+  }
+  @keyframes drift { to { transform: translate(10%,10%); } }
+  @media (max-width: 640px) {
+    .hud { top: 12px; left: 12px; right: 12px; min-width: 0; padding: 12px 14px; }
+    .grid { gap: 8px 12px; }
+  }
+</style>
+</head>
+<body>
+  <!-- Fullscreen SVG stage -->
+  <svg id="stage" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+    <image id="jpeg" x="0" y="0" width="1920" height="1080" preserveAspectRatio="xMidYMid slice"/>
+  </svg>
+
+  <div class="vignette"></div>
+  <div class="grain"></div>
+
+  <div class="hud" aria-live="polite">
+    <div class="title"><span class="dot"></span>ENDLESS <span>· JPEG</span></div>
+    <div class="grid">
+      <div><label>FPS</label><value id="fps">0</value></div>
+      <div><label>Frame</label><value id="frame">0</value></div>
+      <div><label>Size</label><value><span id="size">0</span> KB</value></div>
+      <div><label>Res</label><value id="res">0×0</value></div>
+    </div>
+    <div class="pipeline">canvas → toDataURL('image/jpeg',0.8) → svg:image[href] → html</div>
+  </div>
+
+<script>
+/*
+ENDLESS JPEG
+How it works (the pipeline):
+1. CANVAS: An offscreen HTMLCanvas draws evolving generative art each tick (flowing plasma noise)
+2. JPEG:  canvas.toDataURL('image/jpeg', 0.8) encodes the current pixels to a JPEG data URL
+3. SVG:   The data URL is assigned to <svg><image href="..."> – SVG becomes the display surface
+4. HTML:  The SVG fills the viewport, so you see a continuously re-compressed JPEG stream
+
+This is intentionally wasteful and beautiful – mimicking a live JPEG encoder.
+*/
+
+(() => {
+  const svgImage = document.getElementById('jpeg');
+  const fpsEl = document.getElementById('fps');
+  const frameEl = document.getElementById('frame');
+  const sizeEl = document.getElementById('size');
+  const resEl = document.getElementById('res');
+
+  // Offscreen canvas (never added to DOM)
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let imgData;
+
+  // Size the canvas to balance quality vs speed
+  function resize() {
+    const scale = 0.5;
+    const w = Math.max(320, Math.min(640, Math.floor(window.innerWidth * scale)));
+    const h = Math.max(180, Math.min(360, Math.floor(window.innerHeight * scale)));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      imgData = ctx.createImageData(w, h);
+      resEl.textContent = `${w}×${h}`;
+    }
+  }
+  const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+  window.addEventListener('resize', debounce(resize, 200));
+  resize();
+
+  // Generative art: flowing plasma with color shifts
+  function drawPlasma(now) {
+    const t = now * 0.0004;
+    const w = canvas.width, h = canvas.height;
+    const data = imgData.data;
+    const cx = w * 0.5 + Math.cos(t * 0.7) * w * 0.22;
+    const cy = h * 0.5 + Math.sin(t * 0.6) * h * 0.22;
+
+    let i = 0;
+    for (let y = 0; y < h; y++) {
+      const ny = (y / h) - 0.5;
+      for (let x = 0; x < w; x++) {
+        const nx = (x / w) - 0.5;
+        const dx = x - cx, dy = y - cy;
+        const dist = Math.hypot(nx * 1.6, ny * 1.6);
+
+        // Multiple sine layers create organic flow
+        let v = Math.sin(x * 0.015 + t * 2.1);
+        v += Math.sin(y * 0.018 - t * 1.7);
+        v += Math.sin((nx + ny) * 8 + t * 1.3);
+        v += Math.sin(dist * 12 - t * 3.2) * 0.8;
+        v += Math.cos(Math.atan2(dy, dx) * 2.5 + t * 2.0) * 0.5;
+        v *= 0.2;
+
+        // Time-based color rotation
+        const r = 128 + 127 * Math.sin(v * Math.PI + t * 1.1);
+        const g = 128 + 127 * Math.sin(v * Math.PI + t * 1.1 + 2.094);
+        const b = 128 + 127 * Math.sin(v * Math.PI + t * 1.1 + 4.188);
+
+        // Slight banding to emphasize JPEG artifacts
+        data[i++] = (r & 0xF8); // floor to 8
+        data[i++] = (g & 0xFC); // floor to 4
+        data[i++] = (b & 0xF8);
+        data[i++] = 255;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    // Add a very subtle feedback blur to smear like JPEG generations
+    ctx.globalAlpha = 0.06;
+    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(canvas, 0.5, 0, w, h, 0, 0, w, h);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  let lastEmit = 0;
+  let frames = 0, lastFpsTime = performance.now(), fps = 0;
+  let frameCount = 0;
+
+  function tick(now) {
+    requestAnimationFrame(tick);
+
+    // FPS counter
+    frames++;
+    if (now - lastFpsTime >= 1000) {
+      fps = Math.round(frames * 1000 / (now - lastFpsTime));
+      frames = 0;
+      lastFpsTime = now;
+      fpsEl.textContent = fps;
+    }
+
+    // Throttle encode to ~12-15 fps to keep it efficient
+    if (now - lastEmit < 75) return;
+    lastEmit = now;
+
+    drawPlasma(now);
+    frameCount++;
+    frameEl.textContent = frameCount.toLocaleString();
+
+    // 2. Encode to JPEG
+    const jpegUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+    // 3. Push into SVG <image>
+    // Set both href and xlink:href for widest support
+    svgImage.setAttribute('href', jpegUrl);
+    svgImage.setAttributeNS('http://www.w3.org/1999/xlink', 'href', jpegUrl);
+
+    // 4. Update stats
+    const kb = ((jpegUrl.length * 3) / 4 / 1024).toFixed(1); // rough base64 size
+    sizeEl.textContent = kb;
+  }
+
+  // Kick off
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
