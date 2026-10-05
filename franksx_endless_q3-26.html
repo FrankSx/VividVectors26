@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrankSx | Creative Technologist & Security Researcher</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    background: #030712;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  
+  .glass-panel {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    background: rgba(10, 15, 30, 0.65);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  }
+
+  .glass-card {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .glass-card:hover {
+    border-color: rgba(6, 182, 212, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.15);
+  }
+
+  .grid-bg {
+    background-image: 
+      linear-gradient(rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 182, 212, 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  #resume {
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  #resume.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.97) translateY(12px);
+  }
+  #resume.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1) translateY(0);
+  }
+
+  .crt::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(transparent 0 2px, rgba(0, 255, 255, 0.015) 2px 4px);
+    pointer-events: none;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
+  }
+</style>
+</head>
+<body class="bg-slate-950 text-cyan-100 selection:bg-cyan-500/30 selection:text-cyan-200 min-h-screen flex flex-col relative overflow-x-hidden">
+
+  <!-- BACKGROUND LIVE JPEG CANVAS STAGE -->
+  <div class="fixed inset-0 z-0 pointer-events-none opacity-40">
+    <svg id="jpegStage" class="w-full h-full" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+         data-resume="W1lPVVIgTkFNRV0KQ3JlYXRpdmUgVGVjaG5vbG9naXN0IC8gUGFyc2VyIFJlc2VhcmNoZXIKU1VNTUFSWTogUmVzZWFyY2hlciBmb2N1c2VkIG9uIHBhcnNlciBkaWZmZXJlbnRpYWxzLCBwb2x5Z2xvdCBmaWxlcywgYW5kIGJyb3dzZXIgcmVuZGVyaW5nIGVkZ2UgY2FzZXMuClNLSUxMUzogaHRtbCBwYXJzZXJzLCBmdXp6aW5nLCBudWxsLWJ5dGUgaW5qZWN0aW9uLCBnZW5lcmF0aXZlIGFydApQUk9KRUNUUzogUGFyc2VyIEZvcmVzdCBUZXN0LCBFbmRsZXNzIEpQRUc=">
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="20" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+      </defs>
+      <image id="jpegImage" x="0" y="0" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" filter="url(#glow)"/>
+    </svg>
+  </div>
+
+  <div class="fixed inset-0 grid-bg z-0 pointer-events-none"></div>
+
+  <!-- NAVIGATION / HEADER -->
+  <header class="relative z-20 w-full max-w-7xl mx-auto px-6 pt-6">
+    <nav class="glass-panel rounded-2xl px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="relative flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        </div>
+        <span class="mono font-bold tracking-wider text-white text-lg">FRANKSX</span>
+        <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 mono hidden sm:inline-block">POLYGLOT LAB</span>
+      </div>
+
+      <!-- STREAM STATS -->
+      <div class="hidden md:flex items-center gap-6 mono text-xs text-cyan-200/70">
+        <div>FPS <span id="statFps" class="text-cyan-400 font-semibold">--</span></div>
+        <div>FRAME <span id="statFrame" class="text-cyan-400 font-semibold">0</span></div>
+        <div>SIZE <span id="statSize" class="text-cyan-400 font-semibold">--</span></div>
+      </div>
+
+      <button id="openResumeBtn" class="mono text-xs px-4 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 hover:text-white transition-all flex items-center gap-2 group">
+        <span>REVEAL RESUME</span>
+        <kbd class="px-1.5 py-0.5 text-[10px] bg-cyan-950/80 rounded border border-cyan-500/30 text-cyan-400 group-hover:border-cyan-300">R</kbd>
+      </button>
+    </nav>
+  </header>
+
+  <!-- MAIN HERO CONTENT -->
+  <main class="relative z-10 flex-1 flex flex-col justify-center max-w-7xl mx-auto px-6 py-12 w-full">
+    <div class="grid lg:grid-cols-12 gap-8 items-center">
+      
+      <!-- HERO LEFT -->
+      <div class="lg:col-span-7 space-y-6">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 text-xs mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+          <span>RESEARCHER & CREATIVE TECHNOLOGIST</span>
+        </div>
+
+        <h1 class="text-5xl sm:text-6xl xl:text-7xl font-bold tracking-tight text-white leading-tight">
+          Exploring <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 text-glow">Parser Edge Cases</span> & Security.
+        </h1>
+
+        <p class="text-slate-300 text-base sm:text-lg max-w-2xl leading-relaxed">
+          Specializing in parser differentials, polyglot files, generative canvas systems, and low-level reverse engineering. Hiding complex data in plain sight.
+        </p>
+
+        <div class="flex flex-wrap gap-4 pt-2">
+          <button id="heroActionBtn" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 text-slate-950 font-semibold hover:brightness-110 transition shadow-lg shadow-cyan-500/20 flex items-center gap-2">
+            View Resume Layer
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+          <a href="https://github.com/FrankSx" target="_blank" rel="noopener" class="px-6 py-3.5 rounded-xl glass-card text-white hover:text-cyan-300 transition flex items-center gap-2">
+            GitHub Profile
+          </a>
+        </div>
+      </div>
+
+      <!-- HERO RIGHT: FEATURED CARDS -->
+      <div class="lg:col-span-5 grid gap-4">
+        <div class="glass-card rounded-2xl p-6 relative overflow-hidden group">
+          <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition"></div>
+          <div class="mono text-xs text-cyan-400 mb-1">01 / EXPERIMENT</div>
+          <h3 class="text-xl font-semibold text-white mb-2">Parser Forest Test</h3>
+          <p class="text-slate-400 text-sm">JPEG-in-SVG polyglot exploring how HTML, SVG, and image parsers process identical byte streams differently.</p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6 relative overflow-hidden group">
+          <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-teal-500/10 rounded-full blur-xl group-hover:bg-teal-500/20 transition"></div>
+          <div class="mono text-xs text-teal-400 mb-1">02 / GENERATIVE</div>
+          <h3 class="text-xl font-semibold text-white mb-2">Endless JPEG Streaming</h3>
+          <p class="text-slate-400 text-sm">Real-time dynamic canvas encoding to JPEG data URLs at 60fps, serving as a live background texture.</p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6 relative overflow-hidden group">
+          <div class="mono text-xs text-emerald-400 mb-1">03 / CAPABILITIES</div>
+          <div class="flex flex-wrap gap-2 mt-2">
+            <span class="text-xs px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">Reverse Engineering</span>
+            <span class="text-xs px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">Firmware</span>
+            <span class="text-xs px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">WebGL / Canvas</span>
+            <span class="text-xs px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-slate-300">AI Testing</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="relative z-10 max-w-7xl mx-auto px-6 py-6 w-full flex flex-col sm:flex-row items-center justify-between text-xs mono text-slate-500 border-t border-slate-800/60">
+    <div>PARSER FOREST ENGINE • LAYER 1 ACTIVE</div>
+    <div class="mt-2 sm:mt-0">PRESS <kbd class="px-1 py-0.5 bg-slate-900 border border-slate-700 rounded text-slate-300">R</kbd> OR TRIPLE-CLICK ANYWHERE TO TOGGLE LAYER</div>
+  </footer>
+
+  <!-- HIDDEN RESUME LAYER MODAL -->
+  <div id="resume" class="is-hidden fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6">
+    <div id="resumeBackdrop" class="absolute inset-0 bg-black/85 backdrop-blur-2xl"></div>
+    
+    <div class="relative w-full max-w-[860px] glass-panel rounded-[24px] overflow-hidden crt max-h-[90vh] flex flex-col">
+      <div class="grid-bg absolute inset-0 opacity-20 pointer-events-none"></div>
+      
+      <div class="relative mono p-6 md:p-10 overflow-y-auto">
+        <!-- header -->
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-6 border-b border-cyan-500/20 pb-6">
+          <div>
+            <h1 class="text-3xl md:text-4xl leading-none tracking-tight text-white font-semibold">FrankSx</h1>
+            <p class="mt-2 text-cyan-300 text-sm">Creative Technologist / Reverse Engineering / Consultant</p>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">AVAILABLE</span>
+            <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">REMOTE</span>
+          </div>
+        </div>
+
+        <!-- body -->
+        <div class="grid md:grid-cols-5 gap-8 mt-8">
+          <div class="md:col-span-3 space-y-7">
+            <section>
+              <h2 class="text-xs uppercase tracking-widest text-cyan-400 font-bold mb-3">Summary</h2>
+              <p class="text-sm leading-relaxed text-slate-300">
+                Researcher focused on parser differentials, polyglot files, and browser rendering edge cases[cite: 2]. I build generative systems that hide in plain sight — like this endless JPEG that conceals a resume in three parser layers[cite: 2].
+              </p>
+            </section>
+
+            <section>
+              <h2 class="text-xs uppercase tracking-widest text-cyan-400 font-bold mb-3">Projects</h2>
+              <div class="space-y-4 text-sm">
+                <div class="bg-slate-900/40 p-4 rounded-xl border border-white/5">
+                  <div class="text-white font-medium">Parser Forest Test</div>
+                  <div class="text-slate-400 text-xs mt-1">JPEG-in-SVG polyglot exploring how HTML, SVG, and image parsers disagree on the same bytes[cite: 2].</div>
+                </div>
+                <div class="bg-slate-900/40 p-4 rounded-xl border border-white/5">
+                  <div class="text-white font-medium">Endless JPEG</div>
+                  <div class="text-slate-400 text-xs mt-1">Real-time canvas → toDataURL('image/jpeg') streaming at 60fps, used as a living texture[cite: 2].</div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="md:col-span-2 space-y-7">
+            <section>
+              <h2 class="text-xs uppercase tracking-widest text-cyan-400 font-bold mb-3">Skills</h2>
+              <ul class="text-xs leading-6 text-slate-300 space-y-1">
+                <li>• Reverse Engineering (HW/SW/OS)[cite: 2]</li>
+                <li>• Firmware / Embedded Security Assessment[cite: 2]</li>
+                <li>• Generative Art (Canvas2D/WebGL)[cite: 2]</li>
+                <li>• AI Conduct & Confusion Testing[cite: 2]</li>
+                <li>• File Handling & Endpoint Vulnerability Assessment[cite: 2]</li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 class="text-xs uppercase tracking-widest text-cyan-400 font-bold mb-3">Contact</h2>
+              <div class="text-xs space-y-2 text-slate-300">
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-500">Email:</span>
+                  <a href="mailto:127.0.0.1-hire.me@proton.me" class="text-cyan-300 hover:underline">127.0.0.1-hire.me@proton.me</a>[cite: 2]
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-500">GitHub:</span>
+                  <a href="https://github.com/FrankSx" target="_blank" class="text-cyan-300 hover:underline">github.com/FrankSx</a>[cite: 2]
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-500">Web:</span>
+                  <span class="text-cyan-300">Franksx.github.io/..--..--../</span>[cite: 2]
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h2 class="text-xs uppercase tracking-widest text-cyan-400 font-bold mb-2">Stealth Layer</h2>
+              <p class="text-[11px] leading-relaxed text-slate-400">
+                This resume is also embedded as base64 in the SVG data-resume attribute, and as plaintext in an HTML comment after &lt;/html&gt;[cite: 2].
+              </p>
+            </section>
+          </div>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-cyan-500/20 flex items-center justify-between">
+          <div class="text-[10px] text-cyan-400/60 tracking-widest">PARSER FOREST • LAYER 2 UNLOCKED</div>
+          <button id="closeResume" class="text-xs px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition text-slate-200">ESC to close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const jpegImg = document.getElementById('jpegImage');
+  const resume = document.getElementById('resume');
+  const backdrop = document.getElementById('resumeBackdrop');
+  const closeBtn = document.getElementById('closeResume');
+  const openResumeBtn = document.getElementById('openResumeBtn');
+  const heroActionBtn = document.getElementById('heroActionBtn');
+  const statFps = document.getElementById('statFps');
+  const statFrame = document.getElementById('statFrame');
+  const statSize = document.getElementById('statSize');
+
+  // Generative Canvas Setup
+  const canvas = document.createElement('canvas');
+  const W = Math.min(960, Math.floor(window.innerWidth * 0.75));
+  const H = Math.floor(W * 9/16);
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d', { willReadFrequently: false });
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
+  jpegImg.setAttribute('href', canvas.toDataURL('image/jpeg', 0.7));
+
+  let t = 0, frame = 0, lastFpsTime = performance.now(), fps = 0;
+  let isPaused = false, running = true;
+
+  function render() {
+    if (isPaused) { running = false; return; }
+    running = true;
+
+    t += 16.666;
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = '#020608';
+    ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha = 1;
+
+    const hueBase = (t * 0.015) % 360;
+    
+    for (let i = 0; i < 6; i++) {
+      const a = t * 0.00035 + i * 1.17;
+      const x = W * 0.5 + Math.cos(a * 1.31) * W * 0.32 * Math.sin(a * 0.7 + i);
+      const y = H * 0.5 + Math.sin(a * 0.93) * H * 0.32 * Math.cos(a * 1.1);
+      const r = 70 + 50 * Math.sin(a * 1.7 + i);
+      
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 2.2);
+      const h1 = (hueBase + i * 52) % 360;
+      const h2 = (h1 + 70) % 360;
+      g.addColorStop(0, `hsla(${h1}, 100%, 65%, 0.95)`);
+      g.addColorStop(0.4, `hsla(${h1+20}, 100%, 55%, 0.35)`);
+      g.addColorStop(1, `hsla(${h2}, 100%, 50%, 0)`);
+      
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.globalAlpha = 0.035;
+    for (let y = 0; y < H; y += 3) {
+      const shift = Math.sin(t * 0.0012 + y * 0.08) * 1.5;
+      ctx.fillStyle = `hsl(${(hueBase + y * 0.3) % 360}, 100%, 60%)`;
+      ctx.fillRect(shift, y, W, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.globalAlpha = 0.04;
+    ctx.fillStyle = '#000';
+    for (let i = 0; i < 200; i++) {
+      const nx = Math.random() * W;
+      const ny = Math.random() * H;
+      ctx.fillRect(nx, ny, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    const jpegData = canvas.toDataURL('image/jpeg', 0.72);
+    jpegImg.setAttribute('href', jpegData);
+    jpegImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', jpegData);
+
+    frame++;
+    if (frame % 4 === 0) {
+      const now = performance.now();
+      const delta = now - lastFpsTime;
+      fps = Math.round(4000 / delta);
+      lastFpsTime = now;
+      const sizeKB = Math.round(((jpegData.length - 23) * 0.75) / 1024);
+      statFps.textContent = fps;
+      statFrame.textContent = frame.toLocaleString();
+      statSize.textContent = sizeKB + 'KB';
+    }
+
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+
+  function toggleResume(show) {
+    const willShow = typeof show === 'boolean' ? show : resume.classList.contains('is-hidden');
+    if (willShow) {
+      resume.classList.remove('is-hidden');
+      resume.classList.add('is-visible');
+      isPaused = true;
+    } else {
+      resume.classList.add('is-hidden');
+      resume.classList.remove('is-visible');
+      isPaused = false;
+      if (!running) requestAnimationFrame(render);
+    }
+  }
+
+  // Keyboard and Click handlers
+  let keyBuffer = '';
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') toggleResume(false);
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-8);
+    if (keyBuffer.includes('resume')) {
+      toggleResume(true);
+      keyBuffer = '';
+    }
+    if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      toggleResume();
+    }
+  });
+
+  let lastClick = 0, clicks = 0;
+  window.addEventListener('pointerdown', (e) => {
+    if (resume.contains(e.target) || openResumeBtn.contains(e.target) || heroActionBtn.contains(e.target)) return;
+    const now = Date.now();
+    if (now - lastClick < 380) clicks++; else clicks = 1;
+    lastClick = now;
+    if (clicks >= 3) { toggleResume(); clicks = 0; }
+  });
+
+  openResumeBtn.addEventListener('click', () => toggleResume(true));
+  heroActionBtn.addEventListener('click', () => toggleResume(true));
+  backdrop.addEventListener('click', () => toggleResume(false));
+  closeBtn.addEventListener('click', () => toggleResume(false));
+
+  let resizeTO;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTO);
+    resizeTO = setTimeout(() => {
+      const newW = Math.min(960, Math.floor(window.innerWidth * 0.75));
+      const newH = Math.floor(newW * 9/16);
+      canvas.width = newW; canvas.height = newH;
+    }, 200);
+  });
+})();
+</script>
+</body>
+</html>
