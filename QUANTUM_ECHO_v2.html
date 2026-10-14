@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QUANTUM_ECHO v2.0 | Visual Sonification Engine</title>
+<style>
+  :root {
+    --primary: #ff5500;
+    --secondary: #9900ff;
+    --bg-dark: #050508;
+    --glass: rgba(15, 10, 20, 0.85);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    background-color: var(--bg-dark); 
+    color: var(--primary); 
+    font-family: "Lucida Console", Monaco, monospace; 
+    overflow: hidden; 
+  }
+  canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+  
+  #ui-layer { position: relative; z-index: 10; pointer-events: none; height: 100vh; width: 100vw; }
+  
+  .hud-right {
+    position: absolute; right: 20px; top: 20px; width: 290px;
+    background: var(--glass); border-left: 2px solid var(--primary);
+    box-shadow: -4px 0 20px rgba(255, 85, 0, 0.2);
+    backdrop-filter: blur(8px); padding: 20px; pointer-events: auto;
+  }
+  
+  h1 { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 15px; text-shadow: 0 0 5px var(--primary); }
+  
+  .data-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px; color: #aaa; }
+  .data-row .val { color: var(--primary); font-weight: bold; }
+  
+  .audio-meter { width: 100%; height: 6px; background: #222; margin-bottom: 12px; position: relative; overflow: hidden; }
+  .audio-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--secondary), var(--primary)); transition: width 0.1s; }
+  
+  .ctrl-btn {
+    display: block; width: 100%; background: transparent; border: 1px solid var(--primary);
+    color: var(--primary); padding: 8px; margin-top: 10px; cursor: pointer;
+    font-family: inherit; font-size: 11px; letter-spacing: 1px; transition: all 0.2s;
+  }
+  .ctrl-btn:hover { background: rgba(255, 85, 0, 0.15); box-shadow: inset 0 0 10px rgba(255, 85, 0, 0.3); }
+  .ctrl-btn.alt { border-color: var(--secondary); color: var(--secondary); }
+  .ctrl-btn.alt:hover { background: rgba(153, 0, 255, 0.15); box-shadow: inset 0 0 10px rgba(153, 0, 255, 0.3); }
+
+  #splash {
+    position: fixed; inset: 0; background: var(--bg-dark); z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  #splash h2 { font-size: 32px; margin-bottom: 10px; color: var(--primary); text-shadow: 0 0 15px var(--primary); }
+  #splash p { font-size: 12px; color: #888; margin-bottom: 30px; letter-spacing: 3px; }
+  #splash button { 
+    padding: 15px 30px; background: transparent; border: 2px solid var(--secondary); 
+    color: var(--secondary); font-family: inherit; font-size: 14px; cursor: pointer; text-transform: uppercase;
+  }
+  #splash button:hover { background: var(--secondary); color: #fff; box-shadow: 0 0 20px var(--secondary); }
+
+  #decrypt-vault {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+    width: 80%; max-width: 900px; height: 80vh; background: rgba(5, 5, 10, 0.95);
+    border: 1px solid var(--secondary); z-index: 50; display: none;
+    flex-direction: column; opacity: 0; transition: all 0.3s ease;
+    box-shadow: 0 0 50px rgba(153, 0, 255, 0.2);
+  }
+  #decrypt-vault.visible { display: flex; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .vault-header { padding: 15px; border-bottom: 1px solid var(--secondary); display: flex; justify-content: space-between; color: var(--secondary); font-size: 12px;}
+  .vault-close { background: none; border: none; color: inherit; cursor: pointer; font-family: inherit; }
+  .vault-body { flex: 1; padding: 20px; overflow-y: auto; color: #ccc; font-size: 12px; line-height: 1.6; }
+  .log-entry { margin-bottom: 4px; border-left: 2px solid #333; padding-left: 10px; }
+</style>
+
+<!-- LAYER 1: HEX INJECTION -->
+<div id="data-ghost" style="display:none;" data-hex="4672616e6b53780a437265617469766520546563686e6f6c6f67697374202f205265766572736520456e67696e656572696e67202f20436f6e73756c74616e740a0a53554d4d4152593a0a5265736561726368657220666f6375736564206f6e2070617273657220646966666572656e7469616c732c20706f6c79676c6f742066696c65732c20616e642062726f777365722072656e646572696e6720656467652063617365732e"></div>
+
+</head>
+<body>
+
+<canvas id="glcanvas"></canvas>
+
+<div id="ui-layer">
+  <div class="hud-right">
+    <h1>QUANTUM_ECHO</h1>
+    <div class="data-row"><span>STATUS</span><span class="val" id="ui-status">ONLINE</span></div>
+    <div class="data-row"><span>PROTOCOL</span><span class="val" id="ui-mode">FOAM_STATE</span></div>
+    <div class="data-row"><span>FRAME_RATE</span><span class="val" id="ui-fps">00</span></div>
+    
+    <div style="margin-top: 20px; font-size: 10px; color: #777; margin-bottom: 5px;">LOW FREQ</div>
+    <div class="audio-meter"><div class="audio-fill" id="meter-low"></div></div>
+    
+    <div style="margin-top: 10px; font-size: 10px; color: #777; margin-bottom: 5px;">HIGH FREQ</div>
+    <div class="audio-meter"><div class="audio-fill" id="meter-high"></div></div>
+
+    <button class="ctrl-btn" onclick="cycleEnvironment()">[ SPACE ] CYCLE PROTOCOL</button>
+    <button class="ctrl-btn alt" id="btn-audio" onclick="toggleGenerativeAudio()">[ A ] SONIFY VISUALS (SYNTH)</button>
+    <button class="ctrl-btn alt" id="btn-mic" onclick="toggleMicrophone()">[ M ] UPLINK MICROPHONE</button>
+    <button class="ctrl-btn" onclick="openVault()" style="margin-top: 25px; border-color: #fff; color: #fff;">[ V ] ACCESS DATABANKS</button>
+  </div>
+</div>
+
+<div id="decrypt-vault">
+  <div class="vault-header">
+    <span>CRYPTOGRAPHIC_VAULT // REVERSE_ENGINEERING_PROFILE</span>
+    <button class="vault-close" onclick="closeVault()">[X] ABORT</button>
+  </div>
+  <div class="vault-body" id="vault-log"></div>
+</div>
+
+<div id="splash">
+  <h2>QUANTUM_ECHO v2.0</h2>
+  <p>SONIFIED VISUALIZER & CRYPTO-VAULT</p>
+  <button onclick="startSystem()">ENGAGE SYSTEM</button>
+</div>
+
+<!-- SHADERS -->
+<script id="vs" type="x-shader/x-vertex">
+  attribute vec2 position;
+  void main() { gl_Position = vec4(position, 0.0, 1.0); }
+</script>
+
+<script id="fs" type="x-shader/x-fragment">
+  precision highp float;
+  uniform vec2 u_resolution;
+  uniform vec2 u_mouse;
+  uniform float u_time;
+  uniform float u_low;
+  uniform float u_high;
+  uniform int u_mode;
+
+  // Utilities
+  mat2 rot(float a) { float s=sin(a), c=cos(a); return mat2(c, -s, s, c); }
+
+  // Mode 0: Quantum Foam
+  vec3 renderFoam(vec2 uv) {
+      vec2 p = (uv + (u_mouse - 0.5) * 0.5) * 3.0;
+      float t = u_time * 0.5 + u_low * 2.0;
+      float n = 0.0;
+      for(float i=1.0; i<4.0; i++) {
+          p *= rot(t*0.2/i);
+          p += vec2(sin(t+p.y*i), cos(t+p.x*i)) * 0.5;
+          n += sin(p.x*i)*cos(p.y*i) / i;
+      }
+      n = abs(n);
+      vec3 col = mix(vec3(0.1, 0.0, 0.2), vec3(1.0, 0.3, 0.0), n);
+      return col * (1.0 + u_high);
+  }
+
+  // Mode 1: Cyber Grid
+  vec3 renderGrid(vec2 uv) {
+      vec2 p = uv;
+      p.y += 0.2 + (u_mouse.y - 0.5) * 0.2; // horizon shift
+      p.x += (u_mouse.x - 0.5) * 0.3;
+      float grid = 0.0;
+      if (p.y < 0.0) {
+          vec2 proj = vec2(p.x / abs(p.y), 1.0 / abs(p.y));
+          proj.y -= u_time * 2.0 + u_low*5.0;
+          float lines = abs(fract(proj.y) - 0.5) * 2.0;
+          float vert = abs(fract(proj.x * 2.0) - 0.5) * 2.0;
+          grid = smoothstep(0.1, 0.0, lines) + smoothstep(0.1, 0.0, vert);
+          grid *= exp(-abs(p.y) * 2.0); // fade out
+      }
+      vec3 bg = mix(vec3(0.0), vec3(0.2, 0.0, 0.4), exp(-abs(p.y)*4.0));
+      vec3 col = bg + grid * vec3(1.0, 0.4, 0.0);
+      return col + vec3(u_high * 0.2, 0.0, u_high * 0.4);
+  }
+
+  // Mode 2: Void Core
+  vec3 renderCore(vec2 uv) {
+      vec2 p = uv - (u_mouse - 0.5) * 0.3;
+      float d = length(p);
+      float angle = atan(p.y, p.x);
+      float rad = 0.3 + sin(angle * 8.0 + u_time) * 0.05 + u_low * 0.2;
+      float ring = smoothstep(0.02, 0.0, abs(d - rad));
+      
+      vec2 q = p * rot(u_time + d * 2.0);
+      float spikes = sin(atan(q.y, q.x) * 12.0) * exp(-d*4.0);
+      
+      vec3 col = vec3(0.6, 0.1, 0.9) * ring * 2.0;
+      col += vec3(1.0, 0.5, 0.0) * max(0.0, spikes) * (0.5 + u_high);
+      return col + vec3(0.05, 0.0, 0.08) / (d + 0.1);
+  }
+
+  void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+      vec3 col = vec3(0.0);
+      
+      if(u_mode == 0) col = renderFoam(uv);
+      else if(u_mode == 1) col = renderGrid(uv);
+      else col = renderCore(uv);
+      
+      // Vignette
+      col *= 1.0 - dot(uv, uv) * 0.3;
+      gl_FragColor = vec4(col, 1.0);
+  }
+</script>
+
+<script>
+  // --- STEGANOGRAPHY DATA (Layer 2 & 3) ---
+  const SHIFTED_SKILLS = [8221,37,87,106,123,106,119,120,106,37,74,115,108,110,115,106,106,119,110,115,108,37,45,77,102,119,105,124,102,119,106,49,37,88,116,107,121,124,102,119,106,49,37,84,88,37,112,106,119,115,106,113,120,46]; 
+  const REV_B64 = "Cg==/Li4tLS4uLS0uLi8vb2kucnVodGlnLnhzS25hckYgICAgICA6YmVXCg1vYy50b3BzZ29sYi5za2NhaGtuYXJmICAgICA6Z29sQgp4U2tuYXJGL21vYy5idWh0aWcgICA6YnVIdGlHCmVtLm5vdG9ycEBlbS5lcmloLTEuMC4wLjEyNyAgICA6bGlhbUUKOkRDQVROT0MKCg1yb2Z0YWxwIGduaXJlZW5pZ25lIGVzcmV2ZXIgZXJhd21yaWYgZGVpZmluVSDigJQgMC43diB0aWtbb29UIEVSIGVyYXdkcmFIIFNVQklNTk8g4oaSCnNlcnV0Y3VydHMgZ25pdGFnYXBvcnAtZmxlcyBodGl3IG5vaXR1bG92ZSBHViBzbGFydWVOIOKAlCAwLjh2IGVzbmVmZURFTklMQUNTRU0g4oaSCmduaW5vc2lvcCBjaXRuYW1lcyBodGl3IGVzbmVmZWQgcmVwYXJjcyBJQS1pdG5BIF4gMC4zdiBlZ25hck8ga3Jvd2tjb2xDIOKAlApzc2FweWIgcm90aXNvcG1vYyBHViBodGl3IGRhb2x5YXAgcmVwYXJjcy1pdG5hIGRlaWZpblUg4oaSIApudG9pdGFtaXRzZSBlc29wIG5hbXVoIGlGaVcgSCAgaHRpdyBub2l0YXppbGF1c2l2IG11cnRjZXBzIEZSIOKAlCAwLjh2IGVyb0MgTUNTVCDihpIKbm9pdGF0aW9scHhlIHJlc3JhcCBsYWl0bmVyZWZmaWQgdHRpdCB0b2xneWxvcCBHVi1uaS1HRVBKIOKAlCBlbmlnbkUgdHNlcm9GIHJlc3JhUCDihpIKOlNUQ0VKT1JQCgo=";
+
+  // --- GL & STATE SETUP ---
+  let gl, program, w, h;
+  let time = 0, lastFrame = 0, frames = 0;
+  let currentMode = 0;
+  let mouseX = 0.5, mouseY = 0.5;
+  const modes = ["FOAM_STATE", "CYBER_GRID", "VOID_CORE"];
+  
+  // --- AUDIO SETUP ---
+  let actx, analyser, dataArray;
+  let isGenAudio = false, isMic = false;
+  let lowFreq = 0, highFreq = 0;
+
+  // --- RUNTIME GENERATIVE AUDIO ENGINE ---
+  const visualSonifier = {
+      active: false,
+      osc1: null, osc2: null, modOsc: null,
+      filter: null, masterGain: null, modGain: null,
+      
+      start: function() {
+          setupAudio();
+          if(this.active) return;
+          
+          this.masterGain = actx.createGain();
+          this.masterGain.gain.value = 0.15;
+          
+          this.filter = actx.createBiquadFilter();
+          
+          this.osc1 = actx.createOscillator();
+          this.osc2 = actx.createOscillator();
+          this.modOsc = actx.createOscillator();
+          this.modGain = actx.createGain();
+          
+          // Connect FM modulation: modOsc -> modGain -> osc1 frequency
+          this.modOsc.connect(this.modGain);
+          this.modGain.connect(this.osc1.frequency);
+          
+          // Audio Signal Chain: Oscillators -> Filter -> Master Gain -> Analyser -> Output
+          this.osc1.connect(this.filter);
+          this.osc2.connect(this.filter);
+          this.filter.connect(this.masterGain);
+          this.masterGain.connect(analyser);
+          analyser.connect(actx.destination);
+          
+          this.osc1.start();
+          this.osc2.start();
+          this.modOsc.start();
+          this.active = true;
+      },
+      
+      stop: function() {
+          if(!this.active) return;
+          try {
+              this.osc1.stop(); this.osc2.stop(); this.modOsc.stop();
+              this.osc1.disconnect(); this.osc2.disconnect(); this.modOsc.disconnect();
+          } catch(e){}
+          this.active = false;
+      },
+      
+      update: function(mode, t, mX, mY) {
+          if(!this.active || !actx) return;
+          const now = actx.currentTime;
+          
+          if (mode === 0) { // FOAM_STATE: Ethereal, organic fluid FM synth
+              this.osc1.type = 'sine';
+              this.osc2.type = 'triangle';
+              
+              let baseFreq = 110 + mX * 110; // 110Hz - 220Hz
+              this.osc1.frequency.setTargetAtTime(baseFreq, now, 0.05);
+              this.osc2.frequency.setTargetAtTime(baseFreq * 1.4983, now, 0.05); // Fifth interval
+              
+              this.modOsc.frequency.setTargetAtTime(1.5 + Math.sin(t * 0.5) * 1.0, now, 0.05);
+              this.modGain.gain.setTargetAtTime(20 + mY * 80 + Math.sin(t) * 20, now, 0.05);
+              
+              this.filter.type = 'lowpass';
+              this.filter.frequency.setTargetAtTime(300 + Math.sin(t * 0.8) * 150 + mY * 700, now, 0.05);
+              this.filter.Q.setTargetAtTime(2.0, now, 0.05);
+              
+          } else if (mode === 1) { // CYBER_GRID: Arpeggiated pulse bassline
+              this.osc1.type = 'sawtooth';
+              this.osc2.type = 'square';
+              
+              const scale = [55.0, 65.41, 73.42, 82.41, 98.00, 110.0, 130.81];
+              const step = Math.floor(t * 8 + mX * 4) % scale.length;
+              let freq = scale[step];
+              
+              this.osc1.frequency.setTargetAtTime(freq, now, 0.02);
+              this.osc2.frequency.setTargetAtTime(freq * 2.0, now, 0.02);
+              
+              let gridSweep = Math.abs(Math.sin(t * 4.0));
+              this.filter.type = 'bandpass';
+              this.filter.frequency.setTargetAtTime(300 + gridSweep * 1800 + mY * 1500, now, 0.03);
+              this.filter.Q.setTargetAtTime(4.0 + mY * 6.0, now, 0.05);
+              
+              this.modGain.gain.setTargetAtTime(0, now, 0.05);
+              
+          } else if (mode === 2) { // VOID_CORE: Aggressive metallic sub-bass core
+              this.osc1.type = 'sine';
+              this.osc2.type = 'sawtooth';
+              
+              let root = 65.41 + mY * 32.7; // Deep C2 range
+              this.osc1.frequency.setTargetAtTime(root, now, 0.05);
+              this.osc2.frequency.setTargetAtTime(root * 0.5, now, 0.05);
+              
+              // Modulate by 12x (matches the 12 spikes in core shader)
+              this.modOsc.frequency.setTargetAtTime(root * 12.0, now, 0.05);
+              let spikePulse = Math.pow(Math.abs(Math.sin(t * 3.0)), 2.0);
+              this.modGain.gain.setTargetAtTime(120 + spikePulse * 350 + mX * 250, now, 0.03);
+              
+              this.filter.type = 'lowpass';
+              this.filter.frequency.setTargetAtTime(220 + spikePulse * 1200, now, 0.04);
+              this.filter.Q.setTargetAtTime(7.0, now, 0.05);
+          }
+      }
+  };
+
+  function compileShader(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+  }
+
+  function initGL() {
+      const canvas = document.getElementById('glcanvas');
+      gl = canvas.getContext('webgl');
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      gl.viewport(0, 0, w, h);
+
+      const vs = compileShader(gl.VERTEX_SHADER, document.getElementById('vs').text);
+      const fs = compileShader(gl.FRAGMENT_SHADER, document.getElementById('fs').text);
+      program = gl.createProgram();
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+      gl.useProgram(program);
+
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+      
+      const posAttr = gl.getAttribLocation(program, "position");
+      gl.enableVertexAttribArray(posAttr);
+      gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
+
+      window.addEventListener('resize', () => {
+          w = canvas.width = window.innerWidth;
+          h = canvas.height = window.innerHeight;
+          gl.viewport(0, 0, w, h);
+      });
+
+      window.addEventListener('mousemove', (e) => {
+          mouseX = e.clientX / window.innerWidth;
+          mouseY = 1.0 - (e.clientY / window.innerHeight);
+      });
+  }
+
+  function cycleEnvironment() {
+      currentMode = (currentMode + 1) % 3;
+      document.getElementById('ui-mode').innerText = modes[currentMode];
+  }
+
+  function setupAudio() {
+      if(!actx) {
+          actx = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = actx.createAnalyser();
+          analyser.fftSize = 256;
+          dataArray = new Uint8Array(analyser.frequencyBinCount);
+      }
+      if (actx.state === 'suspended') {
+          actx.resume();
+      }
+  }
+
+  function toggleGenerativeAudio() {
+      setupAudio();
+      isGenAudio = !isGenAudio;
+      const btn = document.getElementById('btn-audio');
+      
+      if(isGenAudio) {
+          btn.innerText = "[ A ] HALT SYNTH AUDIO";
+          visualSonifier.start();
+      } else {
+          btn.innerText = "[ A ] SONIFY VISUALS (SYNTH)";
+          visualSonifier.stop();
+      }
+  }
+
+  async function toggleMicrophone() {
+      setupAudio();
+      isMic = !isMic;
+      document.getElementById('btn-mic').innerText = isMic ? "[ M ] DISCONNECT MIC" : "[ M ] UPLINK MICROPHONE";
+      
+      if(isMic) {
+          try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              const source = actx.createMediaStreamSource(stream);
+              source.connect(analyser);
+          } catch(err) {
+              console.error("Mic access denied");
+              isMic = false;
+              document.getElementById('btn-mic').innerText = "[ M ] UPLINK MICROPHONE";
+          }
+      }
+  }
+
+  function updateMeters() {
+      if(analyser && (isGenAudio || isMic)) {
+          analyser.getByteFrequencyData(dataArray);
+          let l = 0, h_freq = 0;
+          for(let i=0; i<8; i++) l += dataArray[i];
+          for(let i=30; i<60; i++) h_freq += dataArray[i];
+          
+          lowFreq = (l / 8) / 255.0;
+          highFreq = (h_freq / 30) / 255.0;
+      } else {
+          lowFreq *= 0.9; highFreq *= 0.9;
+      }
+      
+      document.getElementById('meter-low').style.width = (lowFreq * 100) + "%";
+      document.getElementById('meter-high').style.width = (highFreq * 100) + "%";
+  }
+
+  function render(now) {
+      time = now * 0.001;
+      frames++;
+      if(now - lastFrame >= 1000) {
+          document.getElementById('ui-fps').innerText = frames;
+          frames = 0; lastFrame = now;
+      }
+
+      // Update synth tone based on visual parameters
+      if(isGenAudio) {
+          visualSonifier.update(currentMode, time, mouseX, mouseY);
+      }
+
+      updateMeters();
+
+      gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), w, h);
+      gl.uniform2f(gl.getUniformLocation(program, "u_mouse"), mouseX, mouseY);
+      gl.uniform1f(gl.getUniformLocation(program, "u_time"), time);
+      gl.uniform1i(gl.getUniformLocation(program, "u_mode"), currentMode);
+      gl.uniform1f(gl.getUniformLocation(program, "u_low"), lowFreq);
+      gl.uniform1f(gl.getUniformLocation(program, "u_high"), highFreq);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(render);
+  }
+
+  function startSystem() {
+      document.getElementById('splash').style.display = 'none';
+      initGL();
+      requestAnimationFrame(render);
+  }
+
+  // --- VAULT DECRYPTION ---
+  function openVault() {
+      const v = document.getElementById('decrypt-vault');
+      v.classList.add('visible');
+      const log = document.getElementById('vault-log');
+      log.innerHTML = '';
+      runDecryptionSequence(log);
+  }
+
+  function closeVault() {
+      document.getElementById('decrypt-vault').classList.remove('visible');
+  }
+
+  async function typeLog(target, text, color="#ccc", delay=15) {
+      const el = document.createElement('div');
+      el.className = 'log-entry';
+      el.style.color = color;
+      target.appendChild(el);
+      
+      for(let i=0; i<text.length; i++) {
+          el.innerHTML += text.charAt(i) === '\n' ? '<br>' : text.charAt(i);
+          target.scrollTop = target.scrollHeight;
+          await new Promise(r => setTimeout(r, delay));
+      }
+  }
+
+  async function runDecryptionSequence(log) {
+      await typeLog(log, "> BYPASSING MAINFRAME ENCRYPTION...", "#ff5500");
+      await new Promise(r => setTimeout(r, 400));
+      
+      // Layer 1: Hex
+      await typeLog(log, "> DECODING LAYER 1 (HEX INJECTION)", "#9900ff");
+      const hex = document.getElementById('data-ghost').getAttribute('data-hex');
+      let str1 = "";
+      for (let i = 0; i < hex.length; i += 2) {
+          str1 += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+      }
+      await typeLog(log, str1, "#fff", 5);
+      
+      // Layer 2: Shift
+      await typeLog(log, "> DECODING LAYER 2 (ASCII SHIFT CIPHER)", "#9900ff");
+      let str2 = "SKILLS:\n";
+      for(let i=0; i<SHIFTED_SKILLS.length; i++) {
+          str2 += String.fromCharCode(SHIFTED_SKILLS[i] - 5);
+      }
+      str2 += "\n• Firmware & Embedded Security Assessment\n• Generative Art (WebGL, Canvas2D, WebAudio)\n• AI Conduct Testing & Prompt Eng.\n• Parser Differential Exploitation";
+      await typeLog(log, str2, "#fff", 5);
+
+      // Layer 3: Reversed Base64
+      await typeLog(log, "> DECODING LAYER 3 (REVERSED BASE64 STREAM)", "#9900ff");
+      let rev = REV_B64.split('').reverse().join('');
+      let str3 = atob(rev);
+      await typeLog(log, str3, "#fff", 5);
+      
+      await typeLog(log, "> ALL DATABANKS RECOVERED SUCCESSFULLY.", "#0f0");
+  }
+
+  window.addEventListener('keydown', (e) => {
+      if(e.code === 'Space' && document.getElementById('splash').style.display === 'none') {
+          cycleEnvironment();
+      }
+  });
+</script>
+</body>
+</html>
