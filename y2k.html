@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Y2K System Boot</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=MS+Sans+Serif&display=swap" rel="stylesheet">
+<style>
+  * { user-select: none; box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #008080;
+    font-family: 'VT323', monospace;
+  }
+
+  /* Retro Windows 98 / Y2K Styling */
+  .win98-window {
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    box-shadow: 2px 2px 0px #000;
+  }
+  .win98-header {
+    background: linear-gradient(90deg, #000080, #1084d0);
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    font-weight: bold;
+  }
+  .win98-btn {
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+  }
+  .win98-btn:active {
+    border-color: #808080 #ffffff #ffffff #808080;
+  }
+
+  /* CRT Filter Overlay */
+  .crt::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+    background-size: 100% 4px;
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  /* Datamosh Canvas */
+  #datamoshCanvas {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  /* Mouse Cursor Animation */
+  #simulatedCursor {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    z-index: 500;
+    pointer-events: none;
+    transition: transform 0.05s linear;
+  }
+</style>
+</head>
+<body class="crt relative w-screen h-screen overflow-hidden">
+
+  <!-- 1. LOADING SCREEN -->
+  <div id="loadingScreen" class="absolute inset-0 bg-black text-green-500 p-8 z-50 flex flex-col justify-between font-mono text-lg">
+    <div>
+      <p class="text-white">ENERGY STAR ALLIANCE BIOS v4.06SA</p>
+      <p class="text-slate-400">Copyright (C) 1985-1999, Megatrend Systems Inc.</p>
+      <p class="mt-4">CPU: PENTIUM II @ 450MHz</p>
+      <p>Memory Test: <span id="memCount">0</span>KB OK</p>
+      <div id="bootLogs" class="mt-4 text-xs text-green-400 space-y-1"></div>
+    </div>
+    <div class="text-yellow-400 text-sm">PRESS DEL TO ENTER SETUP | INITIALIZING Y2K KERNEL...</div>
+  </div>
+
+  <!-- 2. LOGIN SCREEN -->
+  <div id="loginScreen" class="hidden absolute inset-0 bg-[#008080] z-40 flex items-center justify-center">
+    <div class="win98-window w-80 p-1">
+      <div class="win98-header px-2 py-1 flex justify-between items-center">
+        <span>Welcome to Y2K OS</span>
+      </div>
+      <div class="p-4 flex flex-col gap-3 text-black font-sans text-xs">
+        <p>Type a user name and password to log on.</p>
+        <div class="flex items-center gap-2">
+          <label class="w-16">User name:</label>
+          <input type="text" value="FrankSx" class="border border-gray-600 px-1 py-0.5 w-full bg-white text-black" readonly>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="w-16">Password:</label>
+          <input id="loginPass" type="password" class="border border-gray-600 px-1 py-0.5 w-full bg-white text-black" readonly>
+        </div>
+        <div class="flex justify-end gap-2 mt-2">
+          <button id="loginBtn" class="win98-btn px-4 py-1 font-bold">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. DESKTOP -->
+  <div id="desktop" class="hidden absolute inset-0 bg-[#008080] z-10">
+    <!-- Desktop Icons -->
+    <div class="p-4 grid grid-cols-1 gap-6 w-24 text-white font-sans text-xs text-center">
+      <div id="resumeIcon" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-blue-800/50 cursor-pointer">
+        <div class="w-8 h-8 bg-yellow-400 border border-black flex items-center justify-center font-bold text-black">DOC</div>
+        <span>Resume.exe</span>
+      </div>
+      <div class="flex flex-col items-center gap-1 p-2 rounded">
+        <div class="w-8 h-8 bg-slate-300 border border-black flex items-center justify-center font-bold text-black">SYS</div>
+        <span>My Computer</span>
+      </div>
+    </div>
+
+    <!-- Taskbar -->
+    <div class="absolute bottom-0 inset-x-0 h-9 bg-[#c0c0c0] border-t-2 border-white flex items-center justify-between px-2 text-black font-sans text-xs z-30">
+      <button class="win98-btn px-3 py-1 font-bold flex items-center gap-1">
+        <span class="bg-red-500 text-white font-black px-1 text-[10px]">98</span> Start
+      </button>
+      <div id="clock" class="border-2 border-gray-500 border-r-white border-b-white px-3 py-0.5 bg-[#c0c0c0]">11:59 PM</div>
+    </div>
+  </div>
+
+  <!-- VIRTUAL SIMULATED CURSOR -->
+  <svg id="simulatedCursor" class="hidden" viewBox="0 0 100 100">
+    <polygon points="0,0 0,80 20,60 40,100 60,90 40,50 70,50" fill="white" stroke="black" stroke-width="5"/>
+  </svg>
+
+  <!-- DATAMOSH & TEARING CANVAS -->
+  <canvas id="datamoshCanvas"></canvas>
+
+  <!-- 4. BSOD / SYSTEM CRASH SCREEN -->
+  <div id="bsodScreen" class="hidden fixed inset-0 bg-[#0000AA] text-white p-12 z-[1000] font-mono text-lg space-y-6">
+    <div class="bg-slate-300 text-[#0000AA] inline-block px-2 font-bold">Windows</div>
+    <p>A fatal exception 0E has occurred at 0028:C0011E36 in VXD VMM(01) + 00010E36. The current application will be terminated.</p>
+    <ul class="list-disc pl-6 space-y-1 text-sm">
+      <li>* Press any key to terminate the current application.</li>
+      <li>* Press CTRL+ALT+DEL again to restart your computer. You will lose any unsaved information in all applications.</li>
+    </ul>
+    <p class="pt-8 text-center animate-pulse">Press any key to continue _</p>
+  </div>
+
+  <script>
+    // State Controls
+    const loadingScreen = document.getElementById('loadingScreen');
+    const loginScreen = document.getElementById('loginScreen');
+    const desktop = document.getElementById('desktop');
+    const cursor = document.getElementById('simulatedCursor');
+    const resumeIcon = document.getElementById('resumeIcon');
+    const canvas = document.getElementById('datamoshCanvas');
+    const ctx = canvas.getContext('2d');
+    const bsodScreen = document.getElementById('bsodScreen');
+
+    // Canvas Resize
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // 1. BOOT SEQUENCE
+    let mem = 0;
+    const memInterval = setInterval(() => {
+      mem += 4096;
+      document.getElementById('memCount').textContent = mem;
+      if (mem >= 65536) {
+        clearInterval(memInterval);
+        setTimeout(startLogin, 600);
+      }
+    }, 50);
+
+    // 2. LOGIN SEQUENCE
+    function startLogin() {
+      loadingScreen.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+
+      const passInput = document.getElementById('loginPass');
+      const passText = "••••••••";
+      let pIdx = 0;
+
+      // Simulate typing password
+      const typePass = setInterval(() => {
+        passInput.value += passText[pIdx];
+        pIdx++;
+        if (pIdx >= passText.length) {
+          clearInterval(typePass);
+          setTimeout(() => {
+            loginScreen.classList.add('hidden');
+            startDesktop();
+          }, 500);
+        }
+      }, 150);
+    }
+
+    // 3. DESKTOP & AUTOMATED MOUSE MOVEMENT
+    function startDesktop() {
+      desktop.classList.remove('hidden');
+      cursor.classList.remove('hidden');
+
+      // Move cursor from bottom right to the Resume Icon
+      const targetRect = resumeIcon.getBoundingClientRect();
+      let startX = window.innerWidth - 100;
+      let startY = window.innerHeight - 100;
+      let endX = targetRect.left + 20;
+      let endY = targetRect.top + 20;
+
+      let progress = 0;
+      const moveMouse = setInterval(() => {
+        progress += 0.02;
+        let currentX = startX + (endX - startX) * progress;
+        let currentY = startY + (endY - startY) * progress;
+
+        cursor.style.left = currentX + 'px';
+        cursor.style.top = currentY + 'px';
+
+        if (progress >= 1) {
+          clearInterval(moveMouse);
+          setTimeout(triggerPopupSequence, 300);
+        }
+      }, 20);
+    }
+
+    // 4. WINDOW POPUPS & WINDOW TEARING EFFECT
+    let windows = [];
+    function triggerPopupSequence() {
+      let popupCount = 0;
+      const popupInterval = setInterval(() => {
+        spawnWindow(popupCount);
+        popupCount++;
+        if (popupCount > 12) {
+          clearInterval(popupInterval);
+          setTimeout(startDatamosh, 800);
+        }
+      }, 150);
+    }
+
+    function spawnWindow(index) {
+      const win = document.createElement('div');
+      win.className = 'win98-window absolute w-72 p-1 z-20';
+      
+      // Cascading / Tearing Positions
+      const x = 100 + (index * 25);
+      const y = 80 + (index * 20);
+      win.style.left = x + 'px';
+      win.style.top = y + 'px';
+
+      win.innerHTML = `
+        <div class="win98-header px-2 py-1 flex justify-between">
+          <span>Y2K_WARN_0x00${index}.sys</span>
+          <button class="win98-btn px-1 text-black font-bold">X</button>
+        </div>
+        <div class="p-3 bg-[#c0c0c0] text-black font-sans text-xs">
+          <p class="font-bold text-red-600">CRITICAL SYSTEM OVERFLOW!</p>
+          <p class="mt-1">Buffer differential corrupting memory blocks...</p>
+        </div>
+      `;
+      desktop.appendChild(win);
+      windows.push(win);
+    }
+
+    // 5. DATAMOSH & INFORMATION CORRUPTION
+    function startDatamosh() {
+      canvas.style.opacity = '1';
+      
+      // Capture current screen content onto canvas
+      ctx.fillStyle = '#008080';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Render simulated resume text into the glitch stream
+      ctx.font = '20px VT323';
+      ctx.fillStyle = '#00FF00';
+      ctx.fillText("FrankSx | Creative Technologist", 150, 100);
+      ctx.fillText("Specialist: Reverse Engineering, Parser Differentials", 150, 130);
+      ctx.fillText("Contact: 127.0.0.1-hire.me@proton.me", 150, 160);
+
+      let frame = 0;
+      function moshLoop() {
+        frame++;
+
+        // Datamosh algorithm: Shift random blocks of canvas pixels horizontally & vertically
+        for (let i = 0; i < 25; i++) {
+          const sw = Math.random() * 200 + 50;
+          const sh = Math.random() * 100 + 20;
+          const sx = Math.random() * (canvas.width - sw);
+          const sy = Math.random() * (canvas.height - sh);
+          
+          const dx = sx + (Math.random() * 30 - 15);
+          const dy = sy + (Math.random() * 10 - 5);
+
+          ctx.drawImage(canvas, sx, sy, sw, sh, dx, dy, sw, sh);
+        }
+
+        // Add random color distortion blocks
+        if (frame % 2 === 0) {
+          ctx.fillStyle = `rgba(${Math.random()*255}, 0, ${Math.random()*255}, 0.15)`;
+          ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 300, 50);
+        }
+
+        if (frame < 80) {
+          requestAnimationFrame(moshLoop);
+        } else {
+          // Trigger final System Crash
+          setTimeout(triggerBSOD, 300);
+        }
+      }
+      requestAnimationFrame(moshLoop);
+    }
+
+    // 6. BLUE SCREEN OF DEATH (SYSTEM CRASH)
+    function triggerBSOD() {
+      canvas.style.opacity = '0';
+      desktop.classList.add('hidden');
+      cursor.classList.add('hidden');
+      bsodScreen.classList.remove('hidden');
+    }
+
+    // Restart on keypress after crash
+    window.addEventListener('keydown', () => {
+      if (!bsodScreen.classList.contains('hidden')) {
+        location.reload();
+      }
+    });
+  </script>
+</body>
+</html>

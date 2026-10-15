@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrankSx // CORRUPTED_FIRMWARE_BOOT_v6.0_TOTAL_UPGRADE</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --phosphor: #ffb000;
+    --phosphor-dim: #7a4f00;
+    --phosphor-bright: #ffee00;
+    --bg: #030100;
+    --glow: rgba(255,176,0,0.7);
+    --scanline-a: 0.3;
+    --glitch-intensity: 0;
+    --shear-x: 0px;
+    --shear-y: 0px;
+    --hue-rotate: 0deg;
+    --chroma-r: #ff0040;
+    --chroma-g: #00ff40;
+    --chroma-b: #0040ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #000; overflow: hidden; font-family: 'VT323', monospace; }
+
+  #crt {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #000; padding: 1vmin;
+  }
+  #screen {
+    position: relative;
+    width: 100%; max-width: 1280px;
+    aspect-ratio: 4/3;
+    background: var(--bg);
+    border-radius: 28px;
+    overflow: hidden;
+    transform: perspective(1000px) rotateX(1.2deg) translate(var(--shear-x), var(--shear-y));
+    box-shadow:
+      inset 0 0 140px rgba(0,0,0,0.98),
+      inset 0 0 40px rgba(0,0,0,0.9),
+      0 0 0 4px #1a0a00, 0 0 0 8px #080300,
+      0 0 120px rgba(255,176,0,0.15);
+    animation: barrel-breathe 0.12s infinite alternate ease-in-out;
+    filter: hue-rotate(var(--hue-rotate));
+  }
+  @keyframes barrel-breathe {
+    0% { transform: perspective(1000px) rotateX(1.2deg) scale(1) translate(var(--shear-x), var(--shear-y)); }
+    100% { transform: perspective(1000px) rotateX(0.6deg) scale(1.004) translate(var(--shear-x), var(--shear-y)); }
+  }
+
+  /* Screen curvature */
+  #screen::before {
+    content: ''; position: absolute; inset: 0; border-radius: 28px;
+    box-shadow: inset 0 0 120px rgba(0,0,0,0.8);
+    pointer-events: none; z-index: 50;
+  }
+
+  /* Scanlines */
+  #scanlines {
+    position: absolute; inset: 0; z-index: 20; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,var(--scanline-a)) 2px,
+      rgba(0,0,0,var(--scanline-a)) 4px
+    );
+    animation: scanline-drift 0.05s linear infinite;
+  }
+  @keyframes scanline-drift {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 4px; }
+  }
+
+  /* Interlace flicker */
+  #interlace {
+    position: absolute; inset: 0; z-index: 19; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg, rgba(255,255,255,0.03), rgba(255,255,255,0.03) 1px,
+      transparent 1px, transparent 4px
+    );
+    opacity: 0;
+  }
+
+  /* Scan bars (glitch) */
+  #scan-bars { position: absolute; inset: 0; z-index: 21; pointer-events: none; overflow: hidden; }
+  .scan-bar {
+    position: absolute; left: 0; right: 0;
+    background: rgba(255,0,64,0.35); mix-blend-mode: color-dodge; pointer-events: none;
+  }
+
+  /* Noise */
+  #noise-canvas {
+    position: absolute; inset: 0; z-index: 24; pointer-events: none;
+    opacity: 0.12; mix-blend-mode: overlay;
+  }
+
+  /* Chroma overlay */
+  #chroma-overlay {
+    position: absolute; inset: 0; z-index: 23; pointer-events: none;
+    mix-blend-mode: screen; opacity: 0;
+    background: radial-gradient(circle, transparent 40%, var(--chroma-r) 160%);
+  }
+
+  /* Invert flash */
+  #invert-flash {
+    position: absolute; inset: 0; z-index: 25; pointer-events: none;
+    background: var(--phosphor); mix-blend-mode: difference; opacity: 0;
+  }
+
+  /* Parser flash (diagonal stripes) */
+  #parser-flash {
+    position: absolute; inset: 0; z-index: 35; pointer-events: none;
+    background: repeating-linear-gradient(
+      135deg, transparent, transparent 8px,
+      rgba(255,0,64,0.25) 8px, rgba(255,0,64,0.25) 16px
+    );
+    opacity: 0; transition: opacity 0.04s;
+  }
+
+  /* Ghost image */
+  #ghost-layer {
+    position: absolute; inset: 0; z-index: 18; pointer-events: none;
+    opacity: 0;
+    mix-blend-mode: screen;
+  }
+
+  /* Signal loss (snow) */
+  #signal-loss {
+    position: absolute; inset: 0; z-index: 36; pointer-events: none;
+    background: #fff; opacity: 0; mix-blend-mode: overlay;
+  }
+
+  /* Tear lines (vertical) */
+  #tear-lines { position: absolute; inset: 0; z-index: 26; pointer-events: none; overflow: hidden; }
+  .tear-line {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: rgba(255,255,255,0.4); mix-blend-mode: difference;
+  }
+
+  /* Terminal */
+  #shake-wrap { position: absolute; inset: 0; z-index: 10; }
+  #terminal {
+    position: absolute; inset: 32px 48px;
+    overflow-y: auto; overflow-x: hidden;
+    color: var(--phosphor);
+    font-size: clamp(14px, 2.2vmin, 23px);
+    line-height: 1.3;
+    text-shadow:
+      0 0 3px var(--phosphor),
+      0 0 10px var(--glow),
+      calc(var(--glitch-intensity) * 5px) 0 var(--chroma-r),
+      calc(var(--glitch-intensity) * -5px) 0 var(--chroma-g),
+      0 calc(var(--glitch-intensity) * 3px) var(--chroma-b);
+    z-index: 10;
+    scrollbar-width: thin;
+    scrollbar-color: var(--phosphor-dim) transparent;
+  }
+  #terminal::-webkit-scrollbar { width: 5px; }
+  #terminal::-webkit-scrollbar-thumb { background: var(--phosphor-dim); border-radius: 3px; }
+
+  /* Text styles */
+  .dim { color: var(--phosphor-dim); text-shadow: none; }
+  .bright { color: var(--phosphor-bright); text-shadow: 0 0 6px var(--phosphor-bright), 0 0 16px var(--glow); }
+  .error { color: #ff0033; text-shadow: 0 0 8px #ff0033, 3px 0 #ff0040, -3px 0 #00ff40; font-weight: bold; }
+  .ok { color: #00ff66; text-shadow: 0 0 6px #00ff66; }
+  .warn { color: #ffaa00; text-shadow: 0 0 6px #ffaa00; }
+  .repair { color: #00ccff; text-shadow: 0 0 6px #00ccff; }
+
+  .blink { animation: blink 0.4s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .cursor {
+    display: inline-block; width: 12px; height: 1.1em;
+    background: var(--phosphor); vertical-align: text-bottom;
+    animation: blink 0.5s step-end infinite;
+    box-shadow: 0 0 8px var(--glow);
+  }
+
+  /* Progress */
+  .progress-container { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+  .progress-bar { flex: 1; height: 16px; border: 1px solid var(--phosphor); background: rgba(0,0,0,0.8); position: relative; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--phosphor); box-shadow: 0 0 12px var(--glow); width: 0%; }
+  .progress-text { min-width: 60px; text-align: right; }
+
+  /* Hex */
+  .hex-row { display: flex; gap: 10px; font-size: 0.9em; flex-wrap: wrap; margin-bottom: 2px; }
+  .hex-addr { color: var(--phosphor-dim); min-width: 90px; }
+  .hex-bytes { display: flex; gap: 4px; min-width: 280px; flex-wrap: wrap; }
+  .hex-byte { min-width: 22px; text-align: center; transition: all 0.05s; }
+  .hex-byte.corrupted { color: #ff0040; text-shadow: 0 0 8px #ff0040; background: rgba(255,0,64,0.2); }
+  .hex-byte.healed { color: #00ff66; text-shadow: 0 0 8px #00ff66; background: rgba(0,255,100,0.1); }
+  .hex-ascii { color: var(--phosphor-dim); letter-spacing: 1px; }
+
+  /* Boot menu */
+  .boot-menu-item { padding: 4px 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+  .boot-menu-item.selected {
+    background: var(--phosphor); color: var(--bg); text-shadow: none;
+    animation: menu-glitch 0.1s infinite;
+  }
+  @keyframes menu-glitch {
+    0% { transform: translateX(5px) skewX(2deg); }
+    50% { transform: translateX(-5px) skewX(-2deg); }
+    100% { transform: translateX(0) skewX(0); }
+  }
+
+  /* HUD */
+  #power-led { position: absolute; bottom: 14px; right: 22px; width: 12px; height: 12px; border-radius: 50%; background: #222; z-index: 40; }
+  #power-led.on { background: #ff0040; box-shadow: 0 0 12px #ff0040, 0 0 24px #ff0040; }
+
+  #integrity-bar {
+    position: absolute; top: 14px; right: 22px; z-index: 40;
+    display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--phosphor-dim);
+  }
+  #integrity-fill { width: 120px; height: 10px; border: 1px solid var(--phosphor-dim); background: rgba(0,0,0,0.8); overflow: hidden; }
+  #integrity-inner { height: 100%; width: 0%; background: #ff0040; box-shadow: 0 0 10px #ff0040; transition: width 0.1s; }
+
+  #theme-badge {
+    position: absolute; bottom: 14px; left: 22px; z-index: 40;
+    font-size: 12px; color: var(--phosphor); border: 1px solid var(--phosphor);
+    padding: 4px 12px; background: rgba(0,0,0,0.6); cursor: pointer; font-family: inherit;
+  }
+
+  #overdrive-btn {
+    position: absolute; top: 14px; left: 22px; z-index: 40;
+    font-size: 12px; color: #ff0040; border: 1px solid #ff0040;
+    padding: 4px 12px; background: rgba(255,0,0,0.15); cursor: pointer; font-family: inherit;
+    text-shadow: 0 0 6px #ff0040;
+    animation: overdrive-pulse 0.5s infinite alternate;
+  }
+  @keyframes overdrive-pulse {
+    0% { box-shadow: 0 0 4px #ff0040; }
+    100% { box-shadow: 0 0 16px #ff0040, inset 0 0 8px rgba(255,0,0,0.3); }
+  }
+
+  .flicker-anim { animation: flicker-pulse 0.1s ease-out; }
+  @keyframes flicker-pulse {
+    0% { opacity: 0.15; }
+    25% { opacity: 0.05; }
+    50% { opacity: 0.12; }
+    75% { opacity: 0.03; }
+    100% { opacity: 0; }
+  }
+
+  @media (max-width: 768px) {
+    #screen { border-radius: 14px; }
+    #terminal { inset: 15px 20px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="crt">
+  <div id="screen">
+    <div id="scanlines"></div>
+    <div id="interlace"></div>
+    <div id="scan-bars"></div>
+    <div id="chroma-overlay"></div>
+    <canvas id="noise-canvas"></canvas>
+    <div id="invert-flash"></div>
+    <div id="parser-flash"></div>
+    <div id="ghost-layer"></div>
+    <div id="signal-loss"></div>
+    <div id="tear-lines"></div>
+    <div id="integrity-bar">
+      <span>CORRUPTION</span>
+      <div id="integrity-fill"><div id="integrity-inner"></div></div>
+    </div>
+    <div id="power-led"></div>
+    <button id="overdrive-btn" onclick="overdrive()">[OVERDRIVE]</button>
+    <button id="theme-badge" onclick="toggleTheme()">[F2] PHOSPHOR</button>
+    <div id="shake-wrap">
+      <div id="terminal"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const term = document.getElementById('terminal');
+const shakeWrap = document.getElementById('shake-wrap');
+const powerLed = document.getElementById('power-led');
+const chromaOverlay = document.getElementById('chroma-overlay');
+const invertFlash = document.getElementById('invert-flash');
+const parserFlash = document.getElementById('parser-flash');
+const scanBars = document.getElementById('scan-bars');
+const interlace = document.getElementById('interlace');
+const ghostLayer = document.getElementById('ghost-layer');
+const signalLoss = document.getElementById('signal-loss');
+const tearLines = document.getElementById('tear-lines');
+const integrityInner = document.getElementById('integrity-inner');
+const root = document.documentElement;
+
+let corruption = 0;
+let shellMode = false;
+let commandBuffer = '';
+let commandHistory = [];
+let historyIndex = -1;
+let audioCtx = null;
+let bootPhase = 0;
+let menuIndex = 0;
+let currentTheme = 'amber';
+let colorHue = 30;
+let autoGlitchInterval = null;
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function beep(freq, dur, type, vol) {
+  freq = freq || 880; dur = dur || 80; type = type || 'square'; vol = vol || 0.06;
+  initAudio();
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur / 1000);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + dur / 1000);
+  } catch(e){}
+}
+
+function glitchSound() {
+  initAudio();
+  try {
+    const size = Math.floor(audioCtx.sampleRate * 0.12);
+    const buf = audioCtx.createBuffer(1, size, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < size; i++) data[i] = (Math.random() * 2 - 1) * 0.2;
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+    src.connect(gain); gain.connect(audioCtx.destination);
+    src.start();
+  } catch(e){}
+}
+
+function powerSound() {
+  initAudio();
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(50, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(15, audioCtx.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+  } catch(e){}
+}
+
+function dataSound() {
+  initAudio();
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(800 + Math.random() * 2000, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+  } catch(e){}
+}
+
+const GLITCH_TYPES = [
+  'chroma_split', 'scanline_shift', 'color_invert', 'screen_shake',
+  'noise_burst', 'barrel_warp', 'parser_differential', 'interlace_flicker',
+  'ghost_image', 'signal_loss', 'tear_lines', 'hue_shift', 'datamosh'
+];
+
+function setCorruption(val) {
+  corruption = Math.max(0, Math.min(100, val));
+  integrityInner.style.width = corruption + '%';
+}
+
+function triggerGlitch(type, intensity) {
+  intensity = intensity || 1;
+  setCorruption(corruption + intensity * 3);
+
+  switch (type) {
+    case 'chroma_split':
+      root.style.setProperty('--glitch-intensity', (1.5 * intensity).toFixed(2));
+      chromaOverlay.style.opacity = (0.5 * intensity).toFixed(2);
+      setTimeout(() => {
+        root.style.setProperty('--glitch-intensity', '0');
+        chromaOverlay.style.opacity = '0';
+      }, 80 + Math.random() * 150);
+      break;
+
+    case 'scanline_shift':
+      for (let i = 0; i < 4 * intensity; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'scan-bar';
+        bar.style.top = Math.random() * 100 + '%';
+        bar.style.height = (3 + Math.random() * 25) + 'px';
+        bar.style.transform = 'translateX(' + ((Math.random() - 0.5) * 100 * intensity) + 'px)';
+        scanBars.appendChild(bar);
+        setTimeout(() => bar.remove(), 60 + Math.random() * 120);
+      }
+      break;
+
+    case 'color_invert':
+      invertFlash.style.opacity = (0.6 * intensity).toFixed(2);
+      setTimeout(() => invertFlash.style.opacity = '0', 40 + Math.random() * 80);
+      break;
+
+    case 'screen_shake':
+      const sx = (Math.random() - 0.5) * 20 * intensity;
+      const sy = (Math.random() - 0.5) * 16 * intensity;
+      shakeWrap.style.transform = 'translate(' + sx + 'px, ' + sy + 'px)';
+      root.style.setProperty('--shear-x', ((Math.random() - 0.5) * 8 * intensity) + 'px');
+      setTimeout(() => {
+        shakeWrap.style.transform = 'translate(0,0)';
+        root.style.setProperty('--shear-x', '0px');
+      }, 70 + Math.random() * 90);
+      break;
+
+    case 'noise_burst':
+      drawNoise();
+      setTimeout(() => {}, 60 + Math.random() * 100);
+      break;
+
+    case 'barrel_warp':
+      const screen = document.getElementById('screen');
+      const rx = (Math.random() - 0.5) * 5 * intensity;
+      const ry = (Math.random() - 0.5) * 4 * intensity;
+      screen.style.transform = 'perspective(1000px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg) scale(' + (0.97 + Math.random() * 0.06) + ')';
+      setTimeout(() => screen.style.transform = '', 120 + Math.random() * 180);
+      break;
+
+    case 'parser_differential':
+      parserFlash.style.opacity = '1';
+      root.style.setProperty('--scanline-a', '0.6');
+      beep(80 + Math.random() * 600, 180, 'sawtooth', 0.1);
+      setTimeout(() => {
+        parserFlash.style.opacity = '0';
+        root.style.setProperty('--scanline-a', '0.3');
+      }, 120 + Math.random() * 200);
+      break;
+
+    case 'interlace_flicker':
+      interlace.style.opacity = (0.3 * intensity).toFixed(2);
+      setTimeout(() => interlace.style.opacity = '0', 80 + Math.random() * 150);
+      break;
+
+    case 'ghost_image':
+      ghostLayer.innerHTML = term.innerHTML;
+      ghostLayer.style.opacity = (0.15 * intensity).toFixed(2);
+      ghostLayer.style.transform = 'translate(' + ((Math.random() - 0.5) * 30) + 'px, ' + ((Math.random() - 0.5) * 20) + 'px)';
+      setTimeout(() => { ghostLayer.style.opacity = '0'; ghostLayer.innerHTML = ''; }, 150 + Math.random() * 200);
+      break;
+
+    case 'signal_loss':
+      signalLoss.style.opacity = (0.2 * intensity).toFixed(2);
+      drawNoise();
+      setTimeout(() => signalLoss.style.opacity = '0', 60 + Math.random() * 100);
+      break;
+
+    case 'tear_lines':
+      for (let i = 0; i < 2 * intensity; i++) {
+        const tear = document.createElement('div');
+        tear.className = 'tear-line';
+        tear.style.left = Math.random() * 100 + '%';
+        tearLines.appendChild(tear);
+        setTimeout(() => tear.remove(), 100 + Math.random() * 200);
+      }
+      break;
+
+    case 'hue_shift':
+      root.style.setProperty('--hue-rotate', (Math.random() * 60 - 30) + 'deg');
+      setTimeout(() => root.style.setProperty('--hue-rotate', '0deg'), 100 + Math.random() * 200);
+      break;
+
+    case 'datamosh':
+      const strips = document.createElement('div');
+      strips.style.position = 'absolute';
+      strips.style.inset = '0';
+      strips.style.zIndex = '17';
+      strips.style.pointerEvents = 'none';
+      strips.style.overflow = 'hidden';
+      for (let i = 0; i < 6; i++) {
+        const strip = document.createElement('div');
+        strip.style.position = 'absolute';
+        strip.style.left = '0'; strip.style.right = '0';
+        strip.style.top = (Math.random() * 80) + '%';
+        strip.style.height = (2 + Math.random() * 8) + '%';
+        strip.style.background = 'rgba(255,176,0,0.1)';
+        strip.style.transform = 'translateX(' + ((Math.random() - 0.5) * 200) + 'px)';
+        strip.style.mixBlendMode = 'screen';
+        strips.appendChild(strip);
+      }
+      document.getElementById('screen').appendChild(strips);
+      setTimeout(() => strips.remove(), 150 + Math.random() * 250);
+      break;
+  }
+
+  glitchSound();
+}
+
+function randomGlitch() {
+  if (Math.random() < 0.55) {
+    const type = GLITCH_TYPES[Math.floor(Math.random() * GLITCH_TYPES.length)];
+    triggerGlitch(type, 0.7 + Math.random() * 1.3);
+  }
+}
+
+function overdrive() {
+  setCorruption(95);
+  for (let i = 0; i < 8; i++) {
+    setTimeout(() => {
+      const type = GLITCH_TYPES[Math.floor(Math.random() * GLITCH_TYPES.length)];
+      triggerGlitch(type, 3);
+    }, i * 80);
+  }
+  beep(100, 600, 'sawtooth', 0.15);
+}
+
+const noiseCanvas = document.getElementById('noise-canvas');
+const nctx = noiseCanvas.getContext('2d');
+function drawNoise() {
+  noiseCanvas.width = noiseCanvas.offsetWidth || 800;
+  noiseCanvas.height = noiseCanvas.offsetHeight || 600;
+  const img = nctx.createImageData(noiseCanvas.width, noiseCanvas.height);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = Math.random() * 255;
+    img.data[i] = v; img.data[i+1] = v > 128 ? 0 : v; img.data[i+2] = v > 200 ? 255 : 0; img.data[i+3] = 50;
+  }
+  nctx.putImageData(img, 0, 0);
+}
+
+const THEMES = { amber: 38, cyan: 180, green: 120, magenta: 300, overdrive: null };
+function updateThemeColor() {
+  if (currentTheme === 'overdrive') return;
+  const h = THEMES[currentTheme];
+  root.style.setProperty('--phosphor', 'hsl(' + h + ', 100%, 55%)');
+  root.style.setProperty('--phosphor-dim', 'hsl(' + h + ', 80%, 30%)');
+  root.style.setProperty('--phosphor-bright', 'hsl(' + h + ', 100%, 70%)');
+  root.style.setProperty('--glow', 'hsla(' + h + ', 100%, 55%, 0.6)');
+}
+
+function toggleTheme() {
+  const keys = Object.keys(THEMES);
+  const idx = keys.indexOf(currentTheme);
+  currentTheme = keys[(idx + 1) % keys.length];
+  if (currentTheme !== 'overdrive') {
+    colorHue = THEMES[currentTheme];
+    updateThemeColor();
+  }
+  beep(currentTheme === 'overdrive' ? 2000 : 500 + idx * 250, 60);
+}
+
+function colorCycleStep() {
+  if (currentTheme === 'overdrive') {
+    colorHue = (colorHue + 3) % 360;
+    const c = 'hsl(' + colorHue + ', 100%, 60%)';
+    root.style.setProperty('--phosphor', c);
+    root.style.setProperty('--phosphor-dim', 'hsl(' + colorHue + ', 80%, 35%)');
+    root.style.setProperty('--phosphor-bright', 'hsl(' + colorHue + ', 100%, 75%)');
+    root.style.setProperty('--glow', 'hsla(' + colorHue + ', 100%, 60%, 0.7)');
+  }
+  requestAnimationFrame(colorCycleStep);
+}
+requestAnimationFrame(colorCycleStep);
+
+function out(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+  randomGlitch();
+}
+
+function clear() { term.innerHTML = ''; }
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function typeLine(text, cls) {
+  cls = cls || '';
+  const div = document.createElement('div');
+  if (cls) div.className = cls;
+  term.appendChild(div);
+  for (let i = 0; i < text.length; i++) {
+    if (Math.random() < 0.2) {
+      const corrupted = String.fromCharCode(0x2580 + Math.floor(Math.random() * 30));
+      div.textContent += corrupted;
+      await wait(15 + Math.random() * 25);
+      div.textContent = div.textContent.slice(0, -1) + text[i];
+      triggerGlitch('chroma_split', 0.4);
+    } else {
+      div.textContent += text[i];
+    }
+    if (i % 2 === 0) await wait(6);
+    if (Math.random() < 0.04) randomGlitch();
+  }
+  term.scrollTop = term.scrollHeight;
+}
+
+async function showProgress(label, duration) {
+  duration = duration || 1200;
+  const container = document.createElement('div');
+  container.className = 'progress-container';
+  container.innerHTML = '<span class="dim">' + label + '</span><div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div><span class="progress-text error" id="prog-text">0%</span>';
+  term.appendChild(container);
+  const fill = container.querySelector('#prog-fill');
+  const text = container.querySelector('#prog-text');
+  const steps = 18;
+  for (let i = 0; i <= steps; i++) {
+    const pct = Math.round((i / steps) * 100);
+    fill.style.width = pct + '%';
+    const glitchPct = pct + (Math.random() > 0.6 ? Math.floor(Math.random() * 50 - 25) : 0);
+    text.textContent = glitchPct + '%';
+    if (Math.random() < 0.25) triggerGlitch('scanline_shift', 1);
+    await wait(duration / steps);
+  }
+  text.textContent = 'UNSTABLE';
+  text.className = 'progress-text warn';
+}
+
+async function hexDump(startAddr, dataBytes, asciiReveal, baseDelay) {
+  baseDelay = baseDelay || 6;
+  const rows = [];
+  for (let i = 0; i < dataBytes.length; i += 16) {
+    const addr = (startAddr + i).toString(16).toUpperCase().padStart(8, '0');
+    const bytes = dataBytes.slice(i, i + 16);
+    const hexVals = bytes.map(function(b) { return b.toString(16).toUpperCase().padStart(2, '0'); });
+    while (hexVals.length < 16) hexVals.push('  ');
+    const ascii = bytes.map(function(b) { const c = String.fromCharCode(b); return (c >= ' ' && c <= '~') ? c : '.'; }).join('');
+    rows.push({ addr: addr, hexVals: hexVals, ascii: ascii, byteOffset: i });
+  }
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    const div = document.createElement('div');
+    div.className = 'hex-row';
+    div.innerHTML = '<span class="hex-addr">' + row.addr + '</span>';
+    const bytesSpan = document.createElement('span');
+    bytesSpan.className = 'hex-bytes';
+    div.appendChild(bytesSpan);
+    const asciiSpan = document.createElement('span');
+    asciiSpan.className = 'hex-ascii';
+    div.appendChild(asciiSpan);
+    term.appendChild(div);
+    term.scrollTop = term.scrollHeight;
+
+    for (let i = 0; i < row.hexVals.length; i++) {
+      const b = document.createElement('span');
+      b.className = 'hex-byte';
+      if (Math.random() < 0.15) {
+        b.classList.add('corrupted');
+        b.textContent = (Math.floor(Math.random() * 256)).toString(16).toUpperCase().padStart(2, '0');
+        bytesSpan.appendChild(b);
+        await wait(baseDelay * 2);
+        b.classList.remove('corrupted');
+        b.classList.add('healed');
+        b.textContent = row.hexVals[i];
+        await wait(baseDelay);
+        b.classList.remove('healed');
+      } else {
+        b.textContent = row.hexVals[i];
+        bytesSpan.appendChild(b);
+        if (row.hexVals[i] !== '  ') await wait(baseDelay);
+      }
+    }
+
+    for (let i = 0; i < row.ascii.length; i++) {
+      const revealIdx = row.byteOffset + i;
+      if (revealIdx < asciiReveal) {
+        asciiSpan.textContent += row.ascii[i];
+        await wait(baseDelay * 0.4);
+      } else {
+        asciiSpan.textContent += '.';
+      }
+    }
+    if (Math.random() < 0.1) randomGlitch();
+    term.scrollTop = term.scrollHeight;
+  }
+}
+
+const RESUME = {
+  name: "FrankSx",
+  role: "Creative Technologist // Parser Destruction Specialist",
+  summary: "I break parsers for fun. Since 2004 I've been feeding null bytes, malformed HTML, and computationally illogical data into systems that think they're too modern to fail. Specialties: Stateful Systems, Dreaming of Overflows and UAF, hiding Big things in Little streams.",
+  skills: ["Reverse Engineering", "HTML5 Arborist", "SVG/Canvas Pipelines", "Firmware + Embedded", "Parser Fuzzing", "Null Byte Injection", "Bug Bounty"],
+  projects: [
+    { name: "Do I Have To Close?", desc: "Dropping </html> on purpose, reopening as SVG, taking the parser for another spin through the tree builder." },
+    { name: "Alice Emergent Core", desc: "Self-entertaining entity system with neural synapses, flocking behaviors, autonomous mutation." },
+    { name: "Regret Bytes", desc: "Null bytes and invalid UTF-8 torture for modern frameworks. Stateful systems that regret parsing." }
+  ],
+  contact: "franksx@proton.me",
+  since: "2004"
+};
+
+function stringToBytes(str) { return Array.from(new TextEncoder().encode(str)); }
+
+async function bootSequence() {
+  powerLed.classList.add('on');
+  setCorruption(0);
+  await wait(200);
+  powerSound();
+  triggerGlitch('parser_differential', 2);
+  await wait(300);
+
+  out('<span class="error">CRITICAL: FIRMWARE INTEGRITY COMPROMISED</span>');
+  out('<span class="bright">FrankSx Systems UEFI Firmware v6.0.0-TOTAL_CORRUPTION</span>');
+  out('<span class="dim">Secure Boot: <span class="error">DESTROYED</span> | TPM: <span class="error">NULL_POINTER_EXCEPTION</span> | DOM: <span class="warn">SVG_OVERFLOW</span></span>');
+  out('');
+  await wait(250);
+
+  await typeLine('Initializing corrupted CPU...', 'dim');
+  await wait(150);
+  triggerGlitch('scanline_shift', 1);
+  out('  <span class="ok">✓</span> Detected: FAKE-x86_64 @ 4.20 GHz (8C/16T)');
+  out('  <span class="ok">✓</span> Microcode: 0xDEADBEEF');
+  out('  <span class="warn">⚠</span> Virtualization: VT-x <span class="error">[CONTAINER_ESCAPE_DETECTED]</span>');
+  triggerGlitch('chroma_split', 0.8);
+  out('');
+  await wait(200);
+
+  await typeLine('Running destructive memory test...', 'dim');
+  await showProgress('DRAM', 1500);
+  triggerGlitch('color_invert', 1.5);
+  triggerGlitch('screen_shake', 1.5);
+  out('  <span class="ok">✓</span> 64GB DDR5-6400 @ <span class="bright">0x00000000 - 0x0FFFFFFFF</span>');
+  out('  <span class="ok">✓</span> Walking ones: PASSED');
+  const corruptLine = document.createElement('div');
+  corruptLine.innerHTML = '  <span class="error">✗</span> Address line test: <span class="error">CORRUPTION @ 0x40100800 — NULL BYTES LEAKED</span>';
+  term.appendChild(corruptLine);
+  term.scrollTop = term.scrollHeight;
+  triggerGlitch('screen_shake', 2);
+  triggerGlitch('noise_burst', 1.5);
+  triggerGlitch('tear_lines', 1);
+  beep(120, 350, 'sawtooth', 0.08);
+  await wait(500);
+  corruptLine.innerHTML = '  <span class="repair">↻</span> <span class="repair">Auto-repair attempted...</span> <span class="ok">RECOVERED</span> <span class="dim">(parser differential handled)</span>';
+  triggerGlitch('chroma_split', 0.5);
+  await wait(300);
+  out('');
+
+  await typeLine('Checking CMOS / NVRAM...', 'dim');
+  await wait(250);
+  triggerGlitch('barrel_warp', 0.8);
+  out('  <span class="ok">✓</span> CMOS checksum: 0x55AA');
+  out('  <span class="warn">⚠</span> Boot order: NVMe0 -> SATA0 -> USB -> <span class="error">SVG_PIPE -> JPEG_STREAM -> WASM_GATE</span> -> NETWORK');
+  out('');
+
+  currentTheme = 'overdrive';
+  await typeLine('Enumerating PCI bus with parser differentials...', 'dim');
+  await wait(200);
+  out('  <span class="dim">00:00.0</span> Host bridge: FrankSx Root Complex');
+  triggerGlitch('hue_shift', 1);
+  out('  <span class="dim">00:01.0</span> VGA controller: Virtual VGA (mem: 0xE0000000)');
+  out('  <span class="dim">00:02.0</span> Ethernet: RTL-8139 (MAC: <span class="bright">DE:AD:BE:EF:CA:FE</span>)');
+  out('  <span class="dim">00:03.0</span> SATA controller: AHCI mode');
+  out('  <span class="dim">00:04.0</span> USB controller: xHCI 1.2 (4 ports)');
+  out('  <span class="dim">00:05.0</span> <span class="error">UNKNOWN</span>: Parser Differential Engine (IRQ: <span class="bright">NULL</span>)');
+  out('  <span class="dim">00:06.0</span> <span class="error">CORRUPTED</span>: SVG Jailbreak v5 (BAR: <span class="error">0xFFFFFFFF</span>)');
+  triggerGlitch('parser_differential', 1.5);
+  triggerGlitch('datamosh', 1);
+  out('');
+
+  currentTheme = 'amber';
+  updateThemeColor();
+  await typeLine('Detecting storage devices...', 'dim');
+  await wait(250);
+  out('  <span class="ok">✓</span> NVMe0: FrankSx-SSD-1TB');
+  out('  <span class="ok">✓</span> SATA0: WDC-WD10EZEX');
+  out('  <span class="warn">⚠</span> USB0: <span class="error">ENDLESS_JPEG.DRV</span> (signature: 0xDEADBEEF, expected: 0xCAFEBABE)');
+  out('  <span class="warn">⚠</span> USB1: <span class="error">MESCALINE_DEFENSE_v8.sys</span> (driver conflict)');
+  out('');
+
+  await typeLine('Scanning GPT partition table...', 'dim');
+  await wait(150);
+  triggerGlitch('scanline_shift', 1.5);
+  triggerGlitch('screen_shake', 2);
+  triggerGlitch('interlace_flicker', 1.5);
+  beep(80, 500, 'sawtooth', 0.1);
+  await wait(400);
+
+  out('  <span class="dim">PART 1:</span> EFI System    <span class="dim">0x00000800</span>  <span class="dim">512MB</span>  <span class="ok">OK</span>');
+  out('  <span class="dim">PART 2:</span> FrankSx OS    <span class="dim">0x00100800</span>  <span class="dim">128GB</span>  <span class="ok">OK</span>');
+  out('  <span class="dim">PART 3:</span> Resume Sector <span class="dim">0x40100800</span>  <span class="dim">4KB</span>    <span class="bright">[RAW — NULL BYTES DETECTED]</span>');
+  out('  <span class="dim">PART 4:</span> Parser Lab    <span class="dim">0x40101800</span>  <span class="dim">64GB</span>   <span class="ok">OK</span>');
+  out('  <span class="dim">PART 5:</span> <span class="error">UNKNOWN</span>       <span class="dim">0x????????</span>  <span class="error">???</span>    <span class="error">[SVG OVERFLOW — DOM MUTATION]</span>');
+  out('  <span class="dim">PART 6:</span> <span class="error">HIDDEN</span>        <span class="dim">0xFFFFFFFF</span>  <span class="error">-1B</span>   <span class="error">[OFF-BY-ONE IN PARTITION TABLE]</span>');
+  out('');
+  setCorruption(55);
+  await wait(350);
+
+  triggerGlitch('parser_differential', 2);
+  triggerGlitch('color_invert', 1.5);
+  triggerGlitch('ghost_image', 1);
+  await typeLine('<span class="bright">>>> READING RESUME SECTOR @ 0x40100800 ...</span>');
+  await wait(250);
+
+  const resumeText = JSON.stringify(RESUME, null, 2);
+  const resumeBytes = stringToBytes(resumeText);
+  await hexDump(0x40100800, resumeBytes, resumeText.length, 5);
+
+  out('');
+  setCorruption(40);
+  triggerGlitch('screen_shake', 1.5);
+  triggerGlitch('signal_loss', 1);
+  await wait(250);
+  out('<span class="ok">✓</span> <span class="bright">Resume sector validated. ' + resumeBytes.length + ' bytes decoded.</span>');
+  out('<span class="repair">↻</span> <span class="dim">Parser differential auto-resolved. Null bytes neutralized via HTML5 adoption agency.</span>');
+  out('');
+  setCorruption(65);
+  await wait(400);
+
+  beep(523, 70); await wait(70);
+  beep(659, 70); await wait(70);
+  beep(784, 100);
+  triggerGlitch('chroma_split', 0.8);
+
+  await showBootMenu();
+}
+
+async function showBootMenu() {
+  bootPhase = 1;
+  out('<span class="bright">═══════════════════════════════════════════════════════</span>');
+  out('<span class="bright">  FRANKSx CORRUPTED BOOT MANAGER v6.0</span>');
+  out('<span class="bright">═══════════════════════════════════════════════════════</span>');
+  out('');
+
+  const items = [
+    { label: 'FrankSx OS (Unstable)', desc: 'Boot into corrupted resume shell', id: 'normal' },
+    { label: 'FrankSx OS (Safe Mode)', desc: 'Minimal text-only resume', id: 'safe' },
+    { label: 'Firmware Setup [F2]', desc: 'Cycle phosphor themes', id: 'setup' },
+    { label: 'Memory Test', desc: 'Extended DRAM with flip errors', id: 'memtest' },
+    { label: 'Network Boot (PXE)', desc: 'Remote parser lab — expect corruption', id: 'pxe' }
+  ];
+
+  const menuContainer = document.createElement('div');
+  menuContainer.id = 'boot-menu';
+  term.appendChild(menuContainer);
+
+  function renderMenu() {
+    menuContainer.innerHTML = '';
+    items.forEach(function(item, i) {
+      const div = document.createElement('div');
+      div.className = 'boot-menu-item' + (i === menuIndex ? ' selected' : '');
+      div.innerHTML = '<span>' + (i === menuIndex ? '<span class="bright">▶</span>' : ' ') + '</span> <span>[' + String(i+1).padStart(2,'0') + '] ' + item.label + '</span> <span class="dim">— ' + item.desc + '</span>';
+      div.onclick = function() { menuIndex = i; renderMenu(); selectBoot(); };
+      menuContainer.appendChild(div);
+    });
+    term.scrollTop = term.scrollHeight;
+  }
+
+  renderMenu();
+  out('');
+  out('<span class="dim">Use ↑↓ to select, ENTER to boot, F2 for theme, or click [OVERDRIVE]</span>');
+}
+
+async function selectBoot() {
+  const items = ['normal', 'safe', 'setup', 'memtest', 'pxe'];
+  const choice = items[menuIndex];
+
+  if (choice === 'normal') await bootOS();
+  else if (choice === 'safe') await bootSafeMode();
+  else if (choice === 'setup') { toggleTheme(); beep(600, 80); }
+  else if (choice === 'memtest') await runMemtest();
+  else if (choice === 'pxe') await pxeBoot();
+}
+
+async function bootOS() {
+  bootPhase = 2;
+  clear();
+  triggerGlitch('parser_differential', 1.5);
+  triggerGlitch('screen_shake', 1.5);
+  beep(440, 70); await wait(70);
+  beep(554, 70); await wait(70);
+  beep(659, 100);
+
+  out('<span class="bright">Loading FrankSx OS kernel (corrupted build)...</span>');
+  await showProgress('KERNEL', 900);
+  triggerGlitch('noise_burst', 1);
+  out('<span class="ok">✓</span> Kernel loaded at 0x100000 (entry: 0x100020)');
+  out('');
+
+  const modules = [
+    'parser_core.ko', 'nullbyte_injector.ko', 'svg_renderer.ko',
+    'firmware_probe.ko', 'bounty_hunter.ko', 'neural_synapse.ko',
+    'html5_arborist.ko', 'jpeg_pipeline.ko', 'emergent_flock.ko',
+    'chromatic_aberration.ko', 'scanline_shift.ko', 'parser_differential.ko',
+    'svg_jailbreak_v5.ko', 'mescaline_defense.ko'
+  ];
+
+  for (let i = 0; i < modules.length; i++) {
+    await typeLine('  Loading ' + modules[i] + '...', 'dim');
+    await wait(50 + Math.random() * 80);
+    if (Math.random() < 0.2) {
+      out(' <span class="warn">WARN</span>');
+      triggerGlitch('chroma_split', 0.4);
+    } else if (Math.random() < 0.08) {
+      out(' <span class="error">FAIL</span>');
+      triggerGlitch('parser_differential', 0.8);
+      await wait(80);
+      out('      <span class="repair">↻ recovered via fallback driver</span>');
+    } else {
+      out(' <span class="ok">OK</span>');
+    }
+  }
+  out('');
+
+  await typeLine('Mounting root filesystem...', 'dim');
+  await wait(200);
+  triggerGlitch('datamosh', 1);
+  out('<span class="ok">✓</span> /dev/nvme0n1p2 mounted as /');
+  out('<span class="ok">✓</span> /dev/nvme0n1p3 mounted as /resume (ro)');
+  out('<span class="warn">⚠</span> /dev/svg0 mounted as /overlay (unstable, parser differential active)');
+  out('<span class="warn">⚠</span> /dev/jpeg1 mounted as /stream (endless loop detected)');
+  out('');
+
+  await typeLine('Starting init process...');
+  await wait(250);
+  triggerGlitch('color_invert', 1);
+  out('<span class="ok">✓</span> init[1]: FrankSx Shell v6.0-corrupt started');
+  out('<span class="ok">✓</span> tty1: login shell ready');
+  out('<span class="dim">System corruption: ' + corruption + '% — parser differentials are a feature, not a bug</span>');
+  out('');
+  await wait(200);
+
+  shellMode = true;
+  prompt();
+}
+
+async function bootSafeMode() {
+  clear();
+  out('<span class="bright">FRANKSX RESUME — SAFE MODE (CORRUPTED)</span>');
+  out('<span class="dim">' + '='.repeat(50) + '</span>');
+  out('');
+  out('NAME:     ' + RESUME.name);
+  out('ROLE:     ' + RESUME.role);
+  out('SINCE:    ' + RESUME.since);
+  out('CONTACT:  ' + RESUME.contact);
+  out('');
+  out('SUMMARY:');
+  out(RESUME.summary);
+  out('');
+  out('SKILLS:');
+  RESUME.skills.forEach(function(s) { out('  • ' + s); });
+  out('');
+  out('PROJECTS:');
+  RESUME.projects.forEach(function(p) { out('  ' + p.name); out('    ' + p.desc); });
+  out('');
+  out('<span class="dim">Type \'reboot\' to restart, F2 for theme, or \'overdrive\' for maximum corruption</span>');
+  shellMode = true;
+  prompt();
+}
+
+async function runMemtest() {
+  clear();
+  out('<span class="bright">EXTENDED MEMORY TEST — DESTRUCTIVE MODE</span>');
+  out('');
+  const patterns = ['0x00', '0xFF', '0x55', '0xAA', '0x01', '0xFE', '0xDE', '0xAD', '0xCA', '0xFE'];
+  for (let pass = 1; pass <= 3; pass++) {
+    out('<span class="dim">Pass ' + pass + '/3...</span>');
+    for (let j = 0; j < patterns.length; j++) {
+      await typeLine('  Testing pattern ' + patterns[j] + '...', 'dim');
+      await wait(120 + Math.random() * 200);
+      if (Math.random() < 0.15) {
+        const addr = (Math.floor(Math.random()*0xFFFFFFFF)).toString(16).toUpperCase();
+        out(' <span class="error">FLIP @ 0x' + addr + '</span>');
+        triggerGlitch('screen_shake', 0.8);
+        await wait(80);
+        out('      <span class="repair">↻ ECC recovered</span>');
+      } else if (Math.random() < 0.05) {
+        out(' <span class="error">SEGFAULT</span>');
+        triggerGlitch('parser_differential', 1);
+        await wait(100);
+        out('      <span class="repair">↻ kernel panic avoided via null-byte injection</span>');
+      } else {
+        out(' <span class="ok">PASS</span>');
+      }
+    }
+  }
+  out('');
+  out('<span class="ok">✓ All memory tests passed. ' + Math.floor(Math.random() * 5) + ' transient errors auto-corrected.</span>');
+  await wait(500);
+  clear();
+  await showBootMenu();
+}
+
+async function pxeBoot() {
+  clear();
+  out('<span class="bright">PXE NETWORK BOOT — PARSER DIFFERENTIAL CHANNEL</span>');
+  out('');
+  await typeLine('Initializing network stack...', 'dim');
+  await wait(250);
+  triggerGlitch('scanline_shift', 1);
+  out('  <span class="ok">✓</span> DHCP: Offer from 10.13.37.1');
+  out('  <span class="ok">✓</span> IP: 10.13.37.42/24');
+  out('  <span class="warn">⚠</span> Gateway: 10.13.37.1 (latency: <span class="error">NULLms</span>)');
+  out('  <span class="warn">⚠</span> DNS: <span class="error">svg://parser.lab/overflow</span> (non-standard scheme)');
+  out('');
+  await typeLine('TFTP download: parser_lab_netboot_corrupt.bin...', 'dim');
+  await showProgress('TFTP', 2000);
+  triggerGlitch('noise_burst', 1.5);
+  out('<span class="ok">✓</span> Download complete (4.2 MB, ' + Math.floor(Math.random()*20) + ' bytes corrupted)');
+  out('');
+  await typeLine('Verifying image signature...', 'dim');
+  await wait(300);
+  triggerGlitch('parser_differential', 2);
+  triggerGlitch('ghost_image', 1.5);
+  triggerGlitch('tear_lines', 1);
+  out('<span class="error">✗ SIGNATURE MISMATCH — PARSER DIFFERENTIAL DETECTED</span>');
+  out('<span class="error">  Expected: 0xCAFEBABE</span>');
+  out('<span class="error">  Got:      0xDEADBEEF</span>');
+  out('<span class="error">  Parser:   JPEG↔SVG boundary corruption in network frame</span>');
+  out('<span class="error">  Module:   svg_jailbreak_v5.ko injected into TFTP packet</span>');
+  out('');
+  out('<span class="warn">⚠ Possible parser differential in network stack. SVG entity escaped container.</span>');
+  out('<span class="dim">Falling back to local boot with corrupted modules...</span>');
+  await wait(1000);
+  clear();
+  await showBootMenu();
+}
+
+function prompt() {
+  const div = document.createElement('div');
+  div.innerHTML = '<span class="error">franksx@corrupted</span>:<span class="bright">~</span>$ <span id="cmdline"></span><span class="cursor"></span>';
+  div.id = 'active-prompt';
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+function updatePrompt() {
+  const p = document.getElementById('active-prompt');
+  if (p) {
+    const cmdline = p.querySelector('#cmdline');
+    if (cmdline) cmdline.textContent = commandBuffer;
+  }
+  term.scrollTop = term.scrollHeight;
+}
+
+function removePrompt() {
+  const p = document.getElementById('active-prompt');
+  if (p) {
+    p.removeAttribute('id');
+    const cursor = p.querySelector('.cursor');
+    if (cursor) cursor.remove();
+  }
+}
+
+function executeCommand(cmd) {
+  const c = cmd.trim().toLowerCase();
+  const args = c.split(/\s+/);
+  const base = args[0];
+
+  removePrompt();
+  out('<span class="error">franksx@corrupted</span>:<span class="bright">~</span>$ ' + cmd);
+  triggerGlitch('scanline_shift', 1);
+
+  switch (base) {
+    case 'help': case '?':
+      out('');
+      out('<span class="bright">Available commands:</span>');
+      out('  <span class="bright">whoami</span>    — Show identity and summary');
+      out('  <span class="bright">skills</span>    — List core capabilities');
+      out('  <span class="bright">projects</span>  — Show selected projects');
+      out('  <span class="bright">contact</span>   — Contact information');
+      out('  <span class="bright">history</span>   — Show command history');
+      out('  <span class="bright">clear</span>     — Clear terminal');
+      out('  <span class="bright">reboot</span>    — Restart system');
+      out('  <span class="bright">theme</span>     — Cycle phosphor themes');
+      out('  <span class="bright">hexdump</span>   — Dump resume sector raw');
+      out('  <span class="bright">glitch</span>    — Trigger random glitch');
+      out('  <span class="bright">overdrive</span> — Maximum corruption burst');
+      out('  <span class="bright">corrupt</span>   — Corrupt random memory region');
+      out('  <span class="bright">panic</span>     — Simulate kernel panic');
+      out('  <span class="bright">integrity</span> — Show corruption level');
+      out('  <span class="bright">repair</span>    — Attempt auto-repair');
+      out('  <span class="bright">exit</span>      — Return to boot menu');
+      out('');
+      break;
+
+    case 'whoami':
+      out('');
+      out('<span class="bright">' + RESUME.name + '</span>');
+      out(RESUME.role);
+      out('<span class="dim">Active since ' + RESUME.since + '</span>');
+      out('');
+      out(RESUME.summary);
+      out('');
+      break;
+
+    case 'skills':
+      out('');
+      out('<span class="bright">CORE CAPABILITIES</span>');
+      out('<span class="dim">' + '─'.repeat(40) + '</span>');
+      RESUME.skills.forEach(function(s, i) {
+        out('  <span class="ok">[' + String(i+1).padStart(2,'0') + ']</span> ' + s);
+      });
+      out('');
+      break;
+
+    case 'projects':
+      out('');
+      out('<span class="bright">SELECTED PROJECTS</span>');
+      out('<span class="dim">' + '─'.repeat(40) + '</span>');
+      RESUME.projects.forEach(function(p, i) {
+        out('  <span class="bright">0' + (i+1) + '.</span> ' + p.name);
+        out('      <span class="dim">' + p.desc + '</span>');
+      });
+      out('');
+      break;
+
+    case 'contact':
+      out('');
+      out('<span class="bright">CONTACT</span>');
+      out('<span class="dim">' + '─'.repeat(40) + '</span>');
+      out('  Email:    <span class="bright">' + RESUME.contact + '</span>');
+      out('  Site:     <span class="dim">parser.lab</span>');
+      out('  Status:   <span class="ok">AVAILABLE FOR HIRE</span>');
+      out('');
+      break;
+
+    case 'history':
+      out('');
+      commandHistory.forEach(function(h, i) {
+        out('  ' + String(i+1).padStart(3,' ') + '  ' + h);
+      });
+      out('');
+      break;
+
+    case 'clear': clear(); break;
+
+    case 'reboot':
+      shellMode = false; bootPhase = 0; menuIndex = 0;
+      commandBuffer = ''; commandHistory = []; historyIndex = -1;
+      term.classList.add('booting');
+      clear(); powerLed.classList.remove('on');
+      setTimeout(function() { bootSequence(); }, 800);
+      return;
+
+    case 'theme':
+      toggleTheme();
+      out('<span class="ok">✓</span> Theme: ' + currentTheme.toUpperCase());
+      break;
+
+    case 'glitch':
+      var g = GLITCH_TYPES[Math.floor(Math.random() * GLITCH_TYPES.length)];
+      triggerGlitch(g, 1.5);
+      out('<span class="warn">⚠</span> Triggered: ' + g);
+      break;
+
+    case 'overdrive':
+      overdrive();
+      out('<span class="error">OVERDRIVE ENGAGED. SYSTEM INTEGRITY CRITICAL.</span>');
+      break;
+
+    case 'corrupt':
+      triggerGlitch('parser_differential', 3);
+      hexDump(0xDEADBEEF, Array.from({length: 96}, function() { return Math.floor(Math.random() * 256); }), 0, 4);
+      break;
+
+    case 'panic':
+      triggerGlitch('color_invert', 3);
+      triggerGlitch('screen_shake', 4);
+      triggerGlitch('signal_loss', 2);
+      out('<span class="error">FATAL: NULL POINTER IN SVG PIPE — KERNEL PANIC SIMULATED</span>');
+      out('<span class="error">  EIP: 0x40100800  EAX: 0x00000000  EBX: 0xDEADBEEF</span>');
+      out('<span class="error">  Stack trace: svg_render() -> html5_adopt() -> null_deref()</span>');
+      break;
+
+    case 'integrity':
+      out('<span class="dim">System corruption level: ' + corruption.toFixed(1) + '%</span>');
+      if (corruption > 80) out('<span class="error">CRITICAL — total system collapse imminent</span>');
+      else if (corruption > 50) out('<span class="warn">DEGRADED — parser differentials active</span>');
+      else if (corruption > 25) out('<span class="warn">ELEVATED — occasional artifacts expected</span>');
+      else out('<span class="ok">NOMINAL — corruption within acceptable parameters</span>');
+      break;
+
+    case 'repair':
+      out('<span class="repair">↻ Attempting auto-repair...</span>');
+      setTimeout(function() {
+        if (Math.random() < 0.4) {
+          setCorruption(Math.max(0, corruption - 20));
+          out('<span class="ok">✓ Repair successful. Corruption reduced to ' + corruption.toFixed(1) + '%</span>');
+        } else {
+          out('<span class="error">✗ Repair failed. Parser differential prevented recovery.</span>');
+          triggerGlitch('parser_differential', 1);
+        }
+      }, 600);
+      break;
+
+    case 'hexdump':
+      out('');
+      out('<span class="bright">RESUME SECTOR RAW DUMP</span>');
+      out('');
+      var bytes = stringToBytes(JSON.stringify(RESUME, null, 2));
+      for (var i = 0; i < bytes.length; i += 16) {
+        var addr = (0x40100800 + i).toString(16).toUpperCase().padStart(8, '0');
+        var chunk = bytes.slice(i, i + 16);
+        var hex = chunk.map(function(b) { return b.toString(16).toUpperCase().padStart(2, '0'); }).join(' ');
+        var ascii = chunk.map(function(b) { var c = String.fromCharCode(b); return (c >= ' ' && c <= '~') ? c : '.'; }).join('');
+        out('<span class="hex-addr">' + addr + '</span>  <span class="hex-bytes">' + hex + '</span>  <span class="hex-ascii">' + ascii + '</span>');
+      }
+      out('');
+      break;
+
+    case 'exit':
+      shellMode = false; bootPhase = 1; menuIndex = 0; commandBuffer = '';
+      clear(); showBootMenu(); return;
+
+    case '': break;
+
+    default:
+      out('<span class="error">franksx: command not found: ' + base + '</span>');
+      out('<span class="dim">Type \'help\' for available commands.</span>');
+      triggerGlitch('chroma_split', 0.5);
+  }
+
+  if (cmd.trim()) { commandHistory.push(cmd.trim()); historyIndex = commandHistory.length; }
+  prompt();
+}
+
+document.addEventListener('keydown', async function(e) {
+  if (e.key === 'F2') { e.preventDefault(); toggleTheme(); return; }
+
+  if (bootPhase === 1) {
+    const items = document.querySelectorAll('.boot-menu-item');
+    if (e.key === 'ArrowUp') {
+      e.preventDefault(); menuIndex = (menuIndex - 1 + items.length) % items.length;
+      items.forEach(function(el, i) {
+        el.classList.toggle('selected', i === menuIndex);
+        el.querySelector('span').innerHTML = i === menuIndex ? '<span class="bright">▶</span>' : ' ';
+      });
+      beep(400, 30);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault(); menuIndex = (menuIndex + 1) % items.length;
+      items.forEach(function(el, i) {
+        el.classList.toggle('selected', i === menuIndex);
+        el.querySelector('span').innerHTML = i === menuIndex ? '<span class="bright">▶</span>' : ' ';
+      });
+      beep(400, 30);
+    } else if (e.key === 'Enter') {
+      e.preventDefault(); beep(600, 60); await selectBoot();
+    }
+    return;
+  }
+
+  if (!shellMode) return;
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    executeCommand(commandBuffer);
+    commandBuffer = '';
+  } else if (e.key === 'Backspace') {
+    e.preventDefault();
+    if (commandBuffer.length > 0) {
+      commandBuffer = commandBuffer.slice(0, -1);
+      updatePrompt();
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (historyIndex > 0) { historyIndex--; commandBuffer = commandHistory[historyIndex] || ''; updatePrompt(); }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (historyIndex < commandHistory.length - 1) { historyIndex++; commandBuffer = commandHistory[historyIndex]; updatePrompt(); }
+    else { historyIndex = commandHistory.length; commandBuffer = ''; updatePrompt(); }
+  } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    commandBuffer += e.key;
+    updatePrompt();
+    if (Math.random() < 0.04) triggerGlitch('chroma_split', 0.3);
+    if (Math.random() < 0.02) triggerGlitch('scanline_shift', 0.5);
+  }
+});
+
+let started = false;
+document.addEventListener('click', function() {
+  if (!started) { started = true; initAudio(); bootSequence(); }
+});
+let keyStarted = false;
+document.addEventListener('keydown', function(e) {
+  if (!keyStarted && !started && e.key !== 'F5' && e.key !== 'F12') {
+    keyStarted = true; started = true; initAudio(); bootSequence();
+  }
+}, { once: true });
+
+out('<span class="error">CRITICAL SYSTEM FAILURE — PARSER DIFFERENTIAL DETECTED</span>');
+out('<span class="bright">Press any key to engage corrupted boot sequence...</span>');
+out('<span class="dim">Or click to initialize POST with visual artifacts</span>');
+out('<span class="dim">WARNING: This firmware contains intentional parser differentials. Glitches are expected.</span>');
+</script>
+</body>
+</html>

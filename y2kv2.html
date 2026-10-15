@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrankSx | Y2K Polyglot Synthesizer & Crash Engine</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+  * { user-select: none; box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #008080;
+    font-family: 'VT323', monospace;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* FrankSx Windows 98 / Y2K Styling */
+  .win98-window {
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #404040 #404040 #ffffff;
+    box-shadow: 3px 3px 0px #000;
+  }
+  .win98-header {
+    background: linear-gradient(90deg, #000080, #0891b2);
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  .win98-btn {
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #404040 #404040 #ffffff;
+    font-size: 13px;
+  }
+  .win98-btn:active {
+    border-color: #404040 #ffffff #ffffff #404040;
+  }
+
+  /* CRT Filter Overlay */
+  .crt::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 255, 255, 0.03) 50%);
+    background-size: 100% 4px;
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  /* Datamosh Canvas */
+  #datamoshCanvas {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  /* Mouse Cursor Animation */
+  #simulatedCursor {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    z-index: 500;
+    pointer-events: none;
+    transition: transform 0.05s linear;
+  }
+
+  .glow-cyan {
+    text-shadow: 0 0 8px rgba(6, 182, 212, 0.8);
+  }
+</style>
+</head>
+<body class="crt relative w-screen h-screen overflow-hidden">
+
+  <!-- STEALTH LAYER 2: BASE64 RESUME ATTRIBUTE -->
+  <svg id="resumeDataStage" class="hidden" 
+       data-resume="R3JhbmtTeCAtIENyZWF0aXZlIFRlY2hub2xvZ2lzdCAvIFJldmVyc2UgRW5naW5lZXJpbmcgLyBDb25zdWx0YW50ClNVTU1BUlk6IFJlc2VhcmNoZXIgZm9jdXNlZCBvbiBwYXJzZXIgZGlmZmVyZW50aWFscywgcG9seWdsb3QgZmlsZXMsIGFuZCBicm93c2VyIHJlbmRlcmluZyBlZGdlIGNhc2VzLgpTS0lMTFM6IFJldmVyc2UgRW5naW5lZXJpbmcsIEZpcm13YXJlLCBHZW5lcmF0aXZlIEFydCwgQUkgVGVzdGluZywgRmlsZSBIYW5kbGluZyBFbmRwb2ludCBUZXN0aW5nLg=="></svg>
+
+  <!-- 1. LOADING SCREEN -->
+  <div id="loadingScreen" class="absolute inset-0 bg-black text-cyan-400 p-8 z-50 flex flex-col justify-between font-mono text-lg">
+    <div>
+      <div class="flex items-center justify-between border-b border-cyan-800 pb-2">
+        <p class="text-white font-bold tracking-widest">FRANKSX POLYGLOT KERNEL v4.06-Y2K</p>
+        <span class="text-xs px-2 py-0.5 bg-cyan-950 text-cyan-300 border border-cyan-500">PARSER FOREST ACTIVE</span>
+      </div>
+      <p class="text-slate-400 mt-2">Copyright (C) FrankSx Research Labs. All rights reserved.</p>
+      <p class="mt-4 text-emerald-400">Processor: PENTIUM II @ 450MHz (STEALTH MODE)</p>
+      <p>Memory Differential Check: <span id="memCount">0</span>KB OK</p>
+      <div id="bootLogs" class="mt-4 text-xs text-cyan-300/80 space-y-1 mono">
+        <div>> Loading parser_differential_rules.sys ... [OK]</div>
+        <div>> Mounting base64_polyglot_payload ... [OK]</div>
+        <div>> Injecting canvas_datamosh_stream ... [OK]</div>
+      </div>
+    </div>
+    <div class="text-yellow-400 text-sm animate-pulse">PRESS DEL TO INTERCEPT PAYLOAD | INITIALIZING FRANKSX OS...</div>
+  </div>
+
+  <!-- 2. LOGIN SCREEN -->
+  <div id="loginScreen" class="hidden absolute inset-0 bg-[#008080] z-40 flex items-center justify-center">
+    <div class="win98-window w-86 p-1">
+      <div class="win98-header px-2 py-1 flex justify-between items-center">
+        <span>Welcome to FrankSx OS (Y2K Edition)</span>
+      </div>
+      <div class="p-4 flex flex-col gap-3 text-black font-sans text-xs">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-cyan-900 border border-black flex items-center justify-center text-cyan-300 font-mono font-bold text-lg">FSX</div>
+          <div>
+            <p class="font-bold">FrankSx Terminal Access</p>
+            <p class="text-slate-600 text-[10px]">Enter credentials to decrypt payload.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 mt-2">
+          <label class="w-20 font-bold">User name:</label>
+          <input type="text" value="FrankSx" class="border border-gray-600 px-1 py-0.5 w-full bg-white text-black font-mono" readonly>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="w-20 font-bold">Password:</label>
+          <input id="loginPass" type="password" class="border border-gray-600 px-1 py-0.5 w-full bg-white text-black font-mono" readonly>
+        </div>
+        <div class="flex justify-end gap-2 mt-2">
+          <button id="loginBtn" class="win98-btn px-4 py-1 font-bold">Authenticate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. DESKTOP -->
+  <div id="desktop" class="hidden absolute inset-0 bg-[#008080] z-10">
+    <!-- Desktop Icons -->
+    <div class="p-4 grid grid-cols-1 gap-6 w-28 text-white font-sans text-xs text-center">
+      <div id="resumeIcon" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-blue-800/50 cursor-pointer">
+        <div class="w-10 h-10 bg-cyan-400 border-2 border-black flex items-center justify-center font-bold text-black font-mono shadow-md">FSX</div>
+        <span class="bg-black/50 px-1 rounded">Resume.exe</span>
+      </div>
+      <div class="flex flex-col items-center gap-1 p-2 rounded">
+        <div class="w-10 h-10 bg-slate-300 border-2 border-black flex items-center justify-center font-bold text-black font-mono">SYS</div>
+        <span class="bg-black/50 px-1 rounded">Parser_Forest</span>
+      </div>
+    </div>
+
+    <!-- Taskbar -->
+    <div class="absolute bottom-0 inset-x-0 h-10 bg-[#c0c0c0] border-t-2 border-white flex items-center justify-between px-2 text-black font-sans text-xs z-30">
+      <button class="win98-btn px-3 py-1 font-bold flex items-center gap-1">
+        <span class="bg-cyan-600 text-white font-black px-1 text-[11px] font-mono">FSX</span> Start
+      </button>
+      <div class="flex items-center gap-3">
+        <span class="mono text-[11px] text-cyan-900 border border-gray-500 px-2 py-0.5 bg-gray-200">PARSER: OK</span>
+        <div id="clock" class="border-2 border-gray-500 border-r-white border-b-white px-3 py-0.5 bg-[#c0c0c0] font-mono">11:59 PM</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIRTUAL SIMULATED CURSOR -->
+  <svg id="simulatedCursor" class="hidden" viewBox="0 0 100 100">
+    <polygon points="0,0 0,80 20,60 40,100 60,90 40,50 70,50" fill="cyan" stroke="black" stroke-width="5"/>
+  </svg>
+
+  <!-- DATAMOSH & TEARING CANVAS -->
+  <canvas id="datamoshCanvas"></canvas>
+
+  <!-- 4. FRANKSX CRASH SCREEN / BSOD -->
+  <div id="bsodScreen" class="hidden fixed inset-0 bg-[#0000AA] text-white p-10 z-[1000] font-mono text-base space-y-5">
+    <div class="bg-cyan-300 text-[#0000AA] inline-block px-3 py-0.5 font-bold">FrankSx Kernel Panic</div>
+    <p class="text-yellow-300">A fatal differential exception 0E occurred in PARSER_FOREST.VXD at 0028:C0011E36[cite: 2].</p>
+    
+    <div class="bg-black/40 border border-cyan-400/30 p-4 text-xs space-y-2 text-cyan-200">
+      <p class="font-bold text-white">INTERCEPTED FRANKSX PAYLOAD:[cite: 2]</p>
+      <p>• Candidate: FrankSx | Creative Technologist & Security Researcher[cite: 2]</p>
+      <p>• Focus: Parser Differentials, Polyglots, Browser Edge Cases[cite: 2]</p>
+      <p>• Contact: 127.0.0.1-hire.me@proton.me | github.com/FrankSx[cite: 2]</p>
+    </div>
+
+    <ul class="list-disc pl-6 space-y-1 text-xs text-slate-300">
+      <li>* Press any key to reset the parser simulation and reload the kernel.</li>
+      <li>* The resume layer remains embedded across base64, canvas, and HTML comment structures[cite: 2].</li>
+    </ul>
+    <p class="pt-4 text-center animate-pulse text-cyan-300">Press any key to restart system _</p>
+  </div>
+
+  <script>
+    // State Controls
+    const loadingScreen = document.getElementById('loadingScreen');
+    const loginScreen = document.getElementById('loginScreen');
+    const desktop = document.getElementById('desktop');
+    const cursor = document.getElementById('simulatedCursor');
+    const resumeIcon = document.getElementById('resumeIcon');
+    const canvas = document.getElementById('datamoshCanvas');
+    const ctx = canvas.getContext('2d');
+    const bsodScreen = document.getElementById('bsodScreen');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // 1. BOOT SEQUENCE
+    let mem = 0;
+    const memInterval = setInterval(() => {
+      mem += 4096;
+      document.getElementById('memCount').textContent = mem;
+      if (mem >= 65536) {
+        clearInterval(memInterval);
+        setTimeout(startLogin, 600);
+      }
+    }, 40);
+
+    // 2. LOGIN SEQUENCE
+    function startLogin() {
+      loadingScreen.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+
+      const passInput = document.getElementById('loginPass');
+      const passText = "••••••••";
+      let pIdx = 0;
+
+      const typePass = setInterval(() => {
+        passInput.value += passText[pIdx];
+        pIdx++;
+        if (pIdx >= passText.length) {
+          clearInterval(typePass);
+          setTimeout(() => {
+            loginScreen.classList.add('hidden');
+            startDesktop();
+          }, 400);
+        }
+      }, 120);
+    }
+
+    // 3. DESKTOP & AUTOMATED MOUSE MOVEMENT
+    function startDesktop() {
+      desktop.classList.remove('hidden');
+      cursor.classList.remove('hidden');
+
+      const targetRect = resumeIcon.getBoundingClientRect();
+      let startX = window.innerWidth - 120;
+      let startY = window.innerHeight - 120;
+      let endX = targetRect.left + 25;
+      let endY = targetRect.top + 25;
+
+      let progress = 0;
+      const moveMouse = setInterval(() => {
+        progress += 0.025;
+        let currentX = startX + (endX - startX) * progress;
+        let currentY = startY + (endY - startY) * progress;
+
+        cursor.style.left = currentX + 'px';
+        cursor.style.top = currentY + 'px';
+
+        if (progress >= 1) {
+          clearInterval(moveMouse);
+          setTimeout(triggerPopupSequence, 300);
+        }
+      }, 20);
+    }
+
+    // 4. WINDOW POPUPS & WINDOW TEARING EFFECT
+    function triggerPopupSequence() {
+      let popupCount = 0;
+      const popupInterval = setInterval(() => {
+        spawnWindow(popupCount);
+        popupCount++;
+        if (popupCount > 10) {
+          clearInterval(popupInterval);
+          setTimeout(startDatamosh, 600);
+        }
+      }, 140);
+    }
+
+    function spawnWindow(index) {
+      const win = document.createElement('div');
+      win.className = 'win98-window absolute w-80 p-1 z-20';
+      
+      const x = 80 + (index * 28);
+      const y = 60 + (index * 22);
+      win.style.left = x + 'px';
+      win.style.top = y + 'px';
+
+      win.innerHTML = `
+        <div class="win98-header px-2 py-1 flex justify-between font-mono">
+          <span>PARSER_CORRUPT_0x0${index}.sys</span>
+          <button class="win98-btn px-1 text-black font-bold">X</button>
+        </div>
+        <div class="p-3 bg-[#c0c0c0] text-black font-mono text-xs">
+          <p class="font-bold text-red-700">FRANKSX DIFFERENTIAL OVERFLOW!</p>
+          <p class="mt-1 text-[11px]">Injecting resume byte stream into display frame buffer...</p>
+        </div>
+      `;
+      desktop.appendChild(win);
+    }
+
+    // 5. DATAMOSH & FRANKSX PAYLOAD CORRUPTION
+    function startDatamosh() {
+      canvas.style.opacity = '1';
+      ctx.fillStyle = '#008080';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let frame = 0;
+      function moshLoop() {
+        frame++;
+
+        // Render FrankSx resume text directly into the corrupted datamosh buffer
+        ctx.font = '24px VT323';
+        ctx.fillStyle = '#00FFFF';
+        ctx.fillText("FrankSx | Creative Technologist", 120, 100);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText("Reverse Engineering • Firmware • Parser Differentials", 120, 130);
+        ctx.fillText("Email: 127.0.0.1-hire.me@proton.me", 120, 160);
+
+        // Datamosh shift effect
+        for (let i = 0; i < 30; i++) {
+          const sw = Math.random() * 240 + 60;
+          const sh = Math.random() * 120 + 20;
+          const sx = Math.random() * (canvas.width - sw);
+          const sy = Math.random() * (canvas.height - sh);
+          
+          const dx = sx + (Math.random() * 40 - 20);
+          const dy = sy + (Math.random() * 16 - 8);
+
+          ctx.drawImage(canvas, sx, sy, sw, sh, dx, dy, sw, sh);
+        }
+
+        if (frame % 2 === 0) {
+          ctx.fillStyle = `rgba(0, 255, 255, 0.15)`;
+          ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 350, 40);
+        }
+
+        if (frame < 90) {
+          requestAnimationFrame(moshLoop);
+        } else {
+          setTimeout(triggerBSOD, 300);
+        }
+      }
+      requestAnimationFrame(moshLoop);
+    }
+
+    // 6. FRANKSX CRASH SYSTEM
+    function triggerBSOD() {
+      canvas.style.opacity = '0';
+      desktop.classList.add('hidden');
+      cursor.classList.add('hidden');
+      bsodScreen.classList.remove('hidden');
+    }
+
+    window.addEventListener('keydown', () => {
+      if (!bsodScreen.classList.contains('hidden')) {
+        location.reload();
+      }
+    });
+  </script>
+</body>
+</html>
+
+<!-- 
+======================================================================
+STEALTH LAYER 3: RAW PLAINTEXT RESUME
+======================================================================
+FrankSx
+Creative Technologist / Reverse Engineering / Consultant
+
+SUMMARY:
+Researcher focused on parser differentials, polyglot files, and browser rendering edge cases[cite: 2].
+I build generative systems that hide in plain sight[cite: 2].
+
+SKILLS:
+- Reverse Engineering (HW/SW/OS)[cite: 2]
+- Firmware / Embedded Security Assessment[cite: 2]
+- Generative Art (Canvas2D/WebGL)[cite: 2]
+- AI Conduct & Confusion Testing[cite: 2]
+- File Handling & Endpoint Testing[cite: 2]
+
+CONTACT:
+Email: 127.0.0.1-hire.me@proton.me[cite: 2]
+GitHub: github.com/FrankSx[cite: 2]
+Web: Franksx.github.io/..--..--../[cite: 2]
+======================================================================
+-->

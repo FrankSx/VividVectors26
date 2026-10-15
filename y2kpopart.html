@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrankSx | Y2K Pop Art Glitch Synthesizer</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;900&family=VT323&display=swap" rel="stylesheet">
+<style>
+  * { user-select: none; box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #ff0055;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .vt323 { font-family: 'VT323', monospace; }
+
+  /* Pop Art Halftone Overlay */
+  .halftone {
+    background-image: radial-gradient(#000 20%, transparent 20%);
+    background-size: 10px 10px;
+  }
+
+  /* Pop Art Window Aesthetics */
+  .pop-window {
+    background: #ffff00;
+    border: 4px solid #000;
+    box-shadow: 8px 8px 0px #000;
+  }
+  .pop-header {
+    background: #00ffff;
+    border-bottom: 4px solid #000;
+    color: #000;
+  }
+  .pop-btn {
+    background: #ff0055;
+    color: #fff;
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0px #000;
+  }
+
+  /* Datamosh Canvas */
+  #datamoshCanvas {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  /* Cursor */
+  #simulatedCursor {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    z-index: 500;
+    pointer-events: none;
+    transition: transform 0.1s ease-out;
+  }
+</style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden halftone">
+
+  <!-- STEALTH LAYER 2: BASE64 RESUME ATTRIBUTE -->
+  <svg id="resumeDataStage" class="hidden" 
+       data-resume="R3JhbmtTeCAtIENyZWF0aXZlIFRlY2hub2xvZ2lzdCAvIFJldmVyc2UgRW5naW5lZXJpbmcgLyBDb25zdWx0YW50ClNVTU1BUlk6IFJlc2VhcmNoZXIgZm9jdXNlZCBvbiBwYXJzZXIgZGlmZmVyZW50aWFscywgcG9seWdsb3QgZmlsZXMsIGFuZCBicm93c2VyIHJlbmRlcmluZyBlZGdlIGNhc2VzLgpTS0lMTFM6IFJldmVyc2UgRW5naW5lZXJpbmcsIEZpcm13YXJlLCBHZW5lcmF0aXZlIEFydCwgQUkgVGVzdGluZywgRmlsZSBIYW5kbGluZyBFbmRwb2ludCBUZXN0aW5nLg=="></svg>
+
+  <!-- 1. SLOW POP ART BOOT SCREEN -->
+  <div id="loadingScreen" class="absolute inset-0 bg-[#00ffff] p-8 z-50 flex flex-col justify-between border-8 border-black">
+    <div>
+      <div class="bg-black text-yellow-300 p-4 border-4 border-white shadow-[6px_6px_0px_#ff0055]">
+        <h1 class="text-3xl font-black tracking-widest uppercase">FRANKSX // POP-ART KERNEL</h1>
+        <p class="vt323 text-xl text-cyan-300">PARSER DIFFERENTIAL ENGINE v9.02</p>
+      </div>
+      <div class="mt-8 space-y-3 font-mono text-black font-bold text-sm bg-white p-6 border-4 border-black shadow-[6px_6px_0px_#000]">
+        <p>> MEMORY CHECK: <span id="memCount">0</span> KB / SYNTHESIZING DYES...</p>
+        <p id="log1" class="opacity-0 transition-opacity duration-500 text-red-600">> STAGE 1: INJECTING CMYK HALFTONE BUFFERS</p>
+        <p id="log2" class="opacity-0 transition-opacity duration-500 text-purple-600">> STAGE 2: MOUNTING POLYGLOT BASE64 DATA payload</p>
+        <p id="log3" class="opacity-0 transition-opacity duration-500 text-blue-600">> STAGE 3: CALIBRATING SLOW MOSH MATRIX</p>
+      </div>
+    </div>
+    <div class="bg-[#ff0055] text-white font-black text-center py-3 border-4 border-black text-xl animate-pulse">
+      CALIBRATING POP SYNTHESIZER • PLEASE WAIT...
+    </div>
+  </div>
+
+  <!-- 2. LOGIN SCREEN -->
+  <div id="loginScreen" class="hidden absolute inset-0 bg-[#ff0055] z-40 flex items-center justify-center p-4">
+    <div class="pop-window w-full max-w-md p-2">
+      <div class="pop-header p-3 flex justify-between items-center font-black text-lg">
+        <span>FRANKSX_POP_AUTHENTICATOR</span>
+        <span class="bg-black text-white px-2 py-0.5 text-xs">Y2K</span>
+      </div>
+      <div class="p-6 bg-white border-2 border-black mt-2 font-mono text-sm space-y-4">
+        <div class="bg-yellow-200 border-2 border-black p-3 font-bold text-black text-xs">
+          ENTER DECRYPTION KEY TO ACCESS FRANKSX RESUME PAYLOAD
+        </div>
+        <div>
+          <label class="block font-black mb-1">USER:</label>
+          <input type="text" value="FrankSx" class="w-full border-4 border-black p-2 font-bold bg-gray-100" readonly>
+        </div>
+        <div>
+          <label class="block font-black mb-1">PASSKEY:</label>
+          <input id="loginPass" type="password" class="w-full border-4 border-black p-2 font-bold bg-gray-100" readonly>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. DESKTOP -->
+  <div id="desktop" class="hidden absolute inset-0 bg-[#ffff00] z-10 p-6">
+    <!-- Desktop Icons -->
+    <div class="grid grid-cols-1 gap-8 w-32">
+      <div id="resumeIcon" class="pop-window p-3 flex flex-col items-center gap-2 cursor-pointer hover:translate-x-1 hover:translate-y-1 transition-transform">
+        <div class="w-12 h-12 bg-[#ff0055] border-2 border-black flex items-center justify-center font-black text-white text-xl">FSX</div>
+        <span class="font-black text-xs text-center bg-black text-white px-1">Resume.exe</span>
+      </div>
+      <div class="pop-window p-3 flex flex-col items-center gap-2">
+        <div class="w-12 h-12 bg-[#00ffff] border-2 border-black flex items-center justify-center font-black text-black text-xl">POP</div>
+        <span class="font-black text-xs text-center bg-black text-white px-1">Parser_Forest</span>
+      </div>
+    </div>
+
+    <!-- Taskbar -->
+    <div class="absolute bottom-0 inset-x-0 h-14 bg-black border-t-8 border-[#00ffff] flex items-center justify-between px-4 z-30">
+      <button class="bg-[#ff0055] text-white font-black px-6 py-2 border-2 border-white text-base hover:bg-red-600">
+        START // FRANKSX
+      </button>
+      <div class="text-yellow-300 font-mono font-bold text-sm bg-gray-900 px-4 py-1 border-2 border-yellow-300">
+        SYSTEM STATUS: SLOW MOSH READY
+      </div>
+    </div>
+  </div>
+
+  <!-- VIRTUAL SIMULATED CURSOR -->
+  <svg id="simulatedCursor" class="hidden" viewBox="0 0 100 100">
+    <polygon points="0,0 0,80 25,60 45,100 65,90 45,50 75,50" fill="#00ffff" stroke="black" stroke-width="8"/>
+  </svg>
+
+  <!-- DATAMOSH & TEARING CANVAS -->
+  <canvas id="datamoshCanvas"></canvas>
+
+  <!-- 4. POP ART CRASH SCREEN -->
+  <div id="bsodScreen" class="hidden fixed inset-0 bg-black text-white p-8 md:p-12 z-[1000] font-mono flex flex-col justify-between border-8 border-[#ff0055]">
+    <div class="space-y-6">
+      <div class="bg-[#ff0055] text-black font-black text-3xl p-4 border-4 border-white inline-block">
+        POP ART KERNEL COLLAPSE
+      </div>
+      <p class="text-yellow-300 text-xl font-bold">
+        A differential exception occurred during high-density Pop Art mosh synthesis[cite: 2].
+      </p>
+
+      <div class="bg-white text-black border-4 border-black p-6 space-y-2 font-mono text-sm shadow-[8px_8px_0px_#00ffff]">
+        <p class="font-black text-lg text-[#ff0055]">DECODED FRANKSX PAYLOAD:[cite: 2]</p>
+        <p>• NAME: FrankSx | Creative Technologist & Security Researcher[cite: 2]</p>
+        <p>• FOCUS: Parser Differentials, Polyglot Files, Generative Art[cite: 2]</p>
+        <p>• SKILLS: Reverse Engineering, WebGL Shaders, Endpoint Security[cite: 2]</p>
+        <p>• CONTACT: 127.0.0.1-hire.me@proton.me | github.com/FrankSx[cite: 2]</p>
+      </div>
+    </div>
+
+    <div class="text-center bg-[#00ffff] text-black font-black p-4 border-4 border-black text-lg animate-bounce">
+      PRESS ANY KEY TO RESET THE POP SYNTHESIZER _
+    </div>
+  </div>
+
+  <script>
+    const loadingScreen = document.getElementById('loadingScreen');
+    const loginScreen = document.getElementById('loginScreen');
+    const desktop = document.getElementById('desktop');
+    const cursor = document.getElementById('simulatedCursor');
+    const resumeIcon = document.getElementById('resumeIcon');
+    const canvas = document.getElementById('datamoshCanvas');
+    const ctx = canvas.getContext('2d');
+    const bsodScreen = document.getElementById('bsodScreen');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // 1. SLOW POP ART BOOT SEQUENCE
+    let mem = 0;
+    const memInterval = setInterval(() => {
+      mem += 2048;
+      document.getElementById('memCount').textContent = mem;
+      if (mem === 16384) document.getElementById('log1').classList.remove('opacity-0');
+      if (mem === 32768) document.getElementById('log2').classList.remove('opacity-0');
+      if (mem === 49152) document.getElementById('log3').classList.remove('opacity-0');
+
+      if (mem >= 65536) {
+        clearInterval(memInterval);
+        setTimeout(startLogin, 1200); // Slower transition
+      }
+    }, 80);
+
+    // 2. SLOW LOGIN SEQUENCE
+    function startLogin() {
+      loadingScreen.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+
+      const passInput = document.getElementById('loginPass');
+      const passText = "••••••••••••";
+      let pIdx = 0;
+
+      const typePass = setInterval(() => {
+        passInput.value += passText[pIdx];
+        pIdx++;
+        if (pIdx >= passText.length) {
+          clearInterval(typePass);
+          setTimeout(() => {
+            loginScreen.classList.add('hidden');
+            startDesktop();
+          }, 800);
+        }
+      }, 200); // Slower typing
+    }
+
+    // 3. DESKTOP & DELIBERATE MOUSE MOVEMENT
+    function startDesktop() {
+      desktop.classList.remove('hidden');
+      cursor.classList.remove('hidden');
+
+      const targetRect = resumeIcon.getBoundingClientRect();
+      let startX = window.innerWidth - 150;
+      let startY = window.innerHeight - 150;
+      let endX = targetRect.left + 30;
+      let endY = targetRect.top + 30;
+
+      let progress = 0;
+      const moveMouse = setInterval(() => {
+        progress += 0.012; // Slower mouse movement
+        let currentX = startX + (endX - startX) * progress;
+        let currentY = startY + (endY - startY) * progress;
+
+        cursor.style.left = currentX + 'px';
+        cursor.style.top = currentY + 'px';
+
+        if (progress >= 1) {
+          clearInterval(moveMouse);
+          setTimeout(triggerComplexPopups, 600);
+        }
+      }, 25);
+    }
+
+    // 4. COMPLEX CASCADING WINDOW POPUPS
+    function triggerComplexPopups() {
+      let popupCount = 0;
+      const colors = ['#00ffff', '#ff0055', '#ffff00', '#00ff00', '#ffffff'];
+
+      const popupInterval = setInterval(() => {
+        spawnPopWindow(popupCount, colors[popupCount % colors.length]);
+        popupCount++;
+        if (popupCount > 14) {
+          clearInterval(popupInterval);
+          setTimeout(startComplexDatamosh, 1000);
+        }
+      }, 250); // Slower popup rate
+    }
+
+    function spawnPopWindow(index, bg) {
+      const win = document.createElement('div');
+      win.className = 'pop-window absolute w-86 p-2 z-20';
+      win.style.backgroundColor = bg;
+      
+      const x = 60 + (index * 32);
+      const y = 40 + (index * 24);
+      win.style.left = x + 'px';
+      win.style.top = y + 'px';
+
+      win.innerHTML = `
+        <div class="pop-header p-2 flex justify-between font-black text-xs">
+          <span>POP_OVERFLOW_0x0${index}.sys</span>
+          <button class="pop-btn px-1 text-xs">X</button>
+        </div>
+        <div class="p-4 bg-white border-2 border-black mt-1 font-mono text-xs">
+          <p class="font-black text-red-600">PARSER DIFFERENTIAL DETECTED!</p>
+          <p class="mt-1 font-bold">Injecting Pop Art CMYK buffers...</p>
+        </div>
+      `;
+      desktop.appendChild(win);
+    }
+
+    // 5. SLOW & COMPLEX DATAMOSH SYNTHESIS
+    function startComplexDatamosh() {
+      canvas.style.opacity = '1';
+
+      // Initial canvas fill
+      ctx.fillStyle = '#ff0055';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let frame = 0;
+      function moshLoop() {
+        frame++;
+
+        // Render Pop Art Resume Typography onto canvas
+        ctx.font = '900 36px Space Grotesk';
+        ctx.fillStyle = '#00ffff';
+        ctx.fillText("FRANKSX // CREATIVE TECHNOLOGIST", 80, 120);
+        ctx.fillStyle = '#ffff00';
+        ctx.fillText("REVERSE ENGINEERING • PARSER DIFFERENTIALS", 80, 170);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText("CONTACT: 127.0.0.1-hire.me@proton.me", 80, 220);
+
+        // Complex multi-layered datamosh algorithms
+        for (let i = 0; i < 20; i++) {
+          const sw = Math.random() * 300 + 100;
+          const sh = Math.random() * 150 + 30;
+          const sx = Math.random() * (canvas.width - sw);
+          const sy = Math.random() * (canvas.height - sh);
+          
+          const dx = sx + (Math.random() * 60 - 30);
+          const dy = sy + (Math.random() * 20 - 10);
+
+          ctx.drawImage(canvas, sx, sy, sw, sh, dx, dy, sw, sh);
+        }
+
+        // Halftone CMYK color block overlays
+        if (frame % 3 === 0) {
+          const cmyk = ['rgba(0,255,255,0.2)', 'rgba(255,0,85,0.2)', 'rgba(255,255,0,0.2)'];
+          ctx.fillStyle = cmyk[frame % cmyk.length];
+          ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 400, 80);
+        }
+
+        if (frame < 160) { // Longer execution time
+          requestAnimationFrame(moshLoop);
+        } else {
+          setTimeout(triggerBSOD, 800);
+        }
+      }
+      requestAnimationFrame(moshLoop);
+    }
+
+    // 6. SYSTEM CRASH
+    function triggerBSOD() {
+      canvas.style.opacity = '0';
+      desktop.classList.add('hidden');
+      cursor.classList.add('hidden');
+      bsodScreen.classList.remove('hidden');
+    }
+
+    window.addEventListener('keydown', () => {
+      if (!bsodScreen.classList.contains('hidden')) {
+        location.reload();
+      }
+    });
+  </script>
+</body>
+</html>
+
+<!-- 
+======================================================================
+STEALTH LAYER 3: RAW PLAINTEXT RESUME
+======================================================================
+FrankSx
+Creative Technologist / Reverse Engineering / Consultant
+
+SUMMARY:
+Researcher focused on parser differentials, polyglot files, and browser rendering edge cases[cite: 2].
+I build generative systems that hide in plain sight[cite: 2].
+
+SKILLS:
+- Reverse Engineering (HW/SW/OS)[cite: 2]
+- Firmware / Embedded Security Assessment[cite: 2]
+- Generative Art (Canvas2D/WebGL)[cite: 2]
+- AI Conduct & Confusion Testing[cite: 2]
+- File Handling & Endpoint Testing[cite: 2]
+
+CONTACT:
+Email: 127.0.0.1-hire.me@proton.me[cite: 2]
+GitHub: github.com/FrankSx[cite: 2]
+Web: Franksx.github.io/..--..--../[cite: 2]
+======================================================================
+-->

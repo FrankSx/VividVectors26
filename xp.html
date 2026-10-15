@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrankSx | Windows XP Edition</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tahoma:wght@400;700&family=VT323&family=Space+Grotesk:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  * { user-select: none; box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Tahoma', sans-serif;
+  }
+
+  /* XP Luna Window Styling */
+  .xp-window {
+    background: #ece9d8;
+    border: 3px solid #0055ea;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 4px 4px 12px rgba(0,0,0,0.5);
+  }
+  .xp-header {
+    background: linear-gradient(180deg, #0058ee 0%, #3a93ff 8%, #0055ea 90%, #0045ab 100%);
+    color: white;
+    font-weight: bold;
+    border-radius: 5px 5px 0 0;
+    text-shadow: 1px 1px 1px #000;
+  }
+  .xp-close-btn {
+    background: linear-gradient(180deg, #e7664e 0%, #c93217 100%);
+    border: 1px solid #fff;
+    border-radius: 3px;
+    box-shadow: inset 0 0 2px #fff;
+  }
+
+  /* XP Taskbar */
+  .xp-taskbar {
+    background: linear-gradient(180deg, #1f2f86 0%, #3168d8 3%, #1941a5 6%, #1940a6 10%, #225ad7 90%, #18338f 95%, #11216d 100%);
+  }
+  .xp-start-btn {
+    background: linear-gradient(180deg, #388238 0%, #5ca75c 10%, #388238 90%, #1e541e 100%);
+    border-radius: 0 8px 8px 0;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+  }
+
+  /* XP Boot Loading Bar Animation */
+  .xp-progress-box {
+    width: 180px;
+    height: 14px;
+    border: 2px solid #b2b2b2;
+    border-radius: 4px;
+    padding: 1px;
+    overflow: hidden;
+    position: relative;
+    background: #000;
+  }
+  .xp-progress-block {
+    width: 30px;
+    height: 100%;
+    background: linear-gradient(180deg, #2872ec 0%, #6ba2f8 50%, #1e52bc 100%);
+    border-radius: 1px;
+    position: absolute;
+    animation: xpLoading 2.5s infinite linear;
+  }
+  @keyframes xpLoading {
+    0% { left: -30px; }
+    100% { left: 180px; }
+  }
+
+  /* Pop Art Halftone Overlay */
+  .halftone {
+    background-image: radial-gradient(rgba(0,0,0,0.15) 20%, transparent 20%);
+    background-size: 8px 8px;
+  }
+
+  /* Datamosh Canvas */
+  #datamoshCanvas {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  /* Simulated Cursor */
+  #simulatedCursor {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    z-index: 500;
+    pointer-events: none;
+    transition: transform 0.1s ease-out;
+  }
+</style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden">
+
+  <!-- 1. WINDOWS XP LOADING SCREEN -->
+  <div id="loadingScreen" class="absolute inset-0 bg-black z-50 flex flex-col items-center justify-between py-24 select-none">
+    <div class="flex flex-col items-center gap-2 mt-12">
+      <!-- Windows XP Logo Simulation -->
+      <div class="flex items-center gap-2">
+        <div class="grid grid-cols-2 gap-1 w-12 h-12">
+          <div class="bg-[#f25022] rounded-tl-sm"></div>
+          <div class="bg-[#7fba00] rounded-tr-sm"></div>
+          <div class="bg-[#00a4ef] rounded-bl-sm"></div>
+          <div class="bg-[#ffb900] rounded-br-sm"></div>
+        </div>
+        <div class="text-white text-left">
+          <span class="text-3xl font-bold tracking-tight italic block leading-none">Microsoft</span>
+          <span class="text-4xl font-extrabold tracking-normal block leading-tight">Windows<span class="text-red-500 text-2xl font-normal not-italic align-super ml-1">xp</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="flex flex-col items-center gap-4">
+      <div class="xp-progress-box">
+        <div class="xp-progress-block"></div>
+      </div>
+      <p class="text-slate-400 text-xs font-mono">FrankSx Edition • Differential Kernel Loading...</p>
+    </div>
+
+    <div class="text-slate-500 text-xs font-mono">Copyright © Microsoft Corporation / FrankSx Labs</div>
+  </div>
+
+  <!-- 2. WINDOWS XP LOGIN SCREEN -->
+  <div id="loginScreen" class="hidden absolute inset-0 bg-[#003399] z-40 flex flex-col justify-between">
+    <div class="h-20 bg-[#002277] border-b-2 border-[#0055ff] flex items-center px-8">
+      <span class="text-white font-bold text-lg italic">Microsoft Windows XP</span>
+    </div>
+    
+    <div class="flex items-center justify-center flex-1">
+      <div class="bg-[#5a7edc]/30 p-8 rounded-xl border border-white/20 flex items-center gap-8 shadow-2xl backdrop-blur-md">
+        <div class="w-20 h-20 bg-[#ffaa00] rounded-lg border-2 border-white flex items-center justify-center text-white font-black text-3xl shadow-md">
+          FSX
+        </div>
+        <div class="flex flex-col gap-2">
+          <span class="text-white font-bold text-xl">FrankSx</span>
+          <span class="text-cyan-200 text-xs font-mono">Type your password to log on</span>
+          <input id="loginPass" type="password" class="px-3 py-1 rounded border border-blue-900 bg-white text-black font-mono w-48 text-sm focus:outline-none" readonly>
+        </div>
+      </div>
+    </div>
+
+    <div class="h-16 bg-[#002277] border-t-2 border-[#0055ff] flex items-center justify-between px-8 text-white text-xs">
+      <span>Turn off computer</span>
+      <span>FrankSx Polyglot Engine</span>
+    </div>
+  </div>
+
+  <!-- 3. WINDOWS XP DESKTOP -->
+  <div id="desktop" class="hidden absolute inset-0 bg-gradient-to-b from-[#1e5799] via-[#207cca] to-[#7db9e8] z-10 halftone">
+    <!-- Desktop Icons -->
+    <div class="p-6 grid grid-cols-1 gap-8 w-28 text-white text-xs text-center">
+      <div id="resumeIcon" class="flex flex-col items-center gap-1 p-2 rounded hover:bg-white/20 cursor-pointer group">
+        <div class="w-12 h-12 bg-white rounded-lg border-2 border-blue-600 flex items-center justify-center font-black text-blue-800 text-lg shadow-lg group-hover:scale-105 transition-transform">
+          DOC
+        </div>
+        <span class="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] font-bold">Resume.exe</span>
+      </div>
+      <div class="flex flex-col items-center gap-1 p-2 rounded hover:bg-white/20 cursor-pointer">
+        <div class="w-12 h-12 bg-yellow-400 rounded-lg border-2 border-amber-600 flex items-center justify-center font-black text-amber-900 text-lg shadow-lg">
+          SYS
+        </div>
+        <span class="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] font-bold">My Computer</span>
+      </div>
+    </div>
+
+    <!-- Taskbar -->
+    <div class="absolute bottom-0 inset-x-0 h-9 xp-taskbar flex items-center justify-between px-0 text-white text-xs z-30 border-t border-blue-400">
+      <button class="xp-start-btn h-full px-4 font-bold italic flex items-center gap-2 text-sm text-white shadow-md">
+        <div class="grid grid-cols-2 gap-0.5 w-3.5 h-3.5">
+          <div class="bg-[#f25022]"></div>
+          <div class="bg-[#7fba00]"></div>
+          <div class="bg-[#00a4ef]"></div>
+          <div class="bg-[#ffb900]"></div>
+        </div>
+        start
+      </button>
+      <div class="bg-[#0c8aea] h-full px-4 flex items-center border-l border-blue-400 font-mono text-xs">
+        11:59 PM
+      </div>
+    </div>
+  </div>
+
+  <!-- VIRTUAL SIMULATED CURSOR -->
+  <svg id="simulatedCursor" class="hidden" viewBox="0 0 100 100">
+    <polygon points="0,0 0,80 25,60 45,100 65,90 45,50 75,50" fill="white" stroke="black" stroke-width="6"/>
+  </svg>
+
+  <!-- DATAMOSH & TEARING CANVAS -->
+  <canvas id="datamoshCanvas"></canvas>
+
+  <!-- 4. WINDOWS XP BSOD SCREEN -->
+  <div id="bsodScreen" class="hidden fixed inset-0 bg-[#000082] text-white p-12 z-[1000] font-mono text-sm leading-relaxed flex flex-col justify-between">
+    <div class="space-y-4">
+      <p>A problem has been detected and Windows has been shut down to prevent damage to your computer.</p>
+      <p class="text-yellow-300 font-bold">DRIVER_IRQL_NOT_LESS_OR_EQUAL_FRANKSX_DIFFERENTIAL</p>
+      <p>If this is the first time you've seen this Stop error screen, restart your computer. If this screen appears again, follow these steps:</p>
+      <ul class="list-disc pl-6 space-y-1">
+        <li>Check to make sure any new hardware or software is properly installed.</li>
+        <li>If this is a new installation, ask your hardware or software manufacturer for any Windows updates you might need.</li>
+      </ul>
+      <div class="bg-black/30 p-4 border border-blue-400/30 rounded mt-4 space-y-1">
+        <p class="font-bold text-cyan-300">Technical Information:</p>
+        <p>*** STOP: 0x0000000A (0x00000002, 0x00000000, 0x804E5B20)</p>
+        <p>*** FRANKSX.SYS - Address F86B5A12 base at F86B0000, DateStamp 3d6dd3c0</p>
+      </div>
+    </div>
+    <div class="text-center text-cyan-200 animate-pulse">
+      Press any key to restart _
+    </div>
+  </div>
+
+  <script>
+    const loadingScreen = document.getElementById('loadingScreen');
+    const loginScreen = document.getElementById('loginScreen');
+    const desktop = document.getElementById('desktop');
+    const cursor = document.getElementById('simulatedCursor');
+    const resumeIcon = document.getElementById('resumeIcon');
+    const canvas = document.getElementById('datamoshCanvas');
+    const ctx = canvas.getContext('2d');
+    const bsodScreen = document.getElementById('bsodScreen');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // 1. LOADING TIMEOUT
+    setTimeout(() => {
+      startLogin();
+    }, 3500);
+
+    // 2. SLOW LOGIN SEQUENCE
+    function startLogin() {
+      loadingScreen.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+
+      const passInput = document.getElementById('loginPass');
+      const passText = "••••••••••••";
+      let pIdx = 0;
+
+      const typePass = setInterval(() => {
+        passInput.value += passText[pIdx];
+        pIdx++;
+        if (pIdx >= passText.length) {
+          clearInterval(typePass);
+          setTimeout(() => {
+            loginScreen.classList.add('hidden');
+            startDesktop();
+          }, 700);
+        }
+      }, 180);
+    }
+
+    // 3. DESKTOP & DELIBERATE MOUSE MOVEMENT
+    function startDesktop() {
+      desktop.classList.remove('hidden');
+      cursor.classList.remove('hidden');
+
+      const targetRect = resumeIcon.getBoundingClientRect();
+      let startX = window.innerWidth - 180;
+      let startY = window.innerHeight - 180;
+      let endX = targetRect.left + 24;
+      let endY = targetRect.top + 24;
+
+      let progress = 0;
+      const moveMouse = setInterval(() => {
+        progress += 0.015;
+        let currentX = startX + (endX - startX) * progress;
+        let currentY = startY + (endY - startY) * progress;
+
+        cursor.style.left = currentX + 'px';
+        cursor.style.top = currentY + 'px';
+
+        if (progress >= 1) {
+          clearInterval(moveMouse);
+          setTimeout(triggerComplexPopups, 500);
+        }
+      }, 25);
+    }
+
+    // 4. COMPLEX CASCADING WINDOW POPUPS (XP POP ART STYLE)
+    function triggerComplexPopups() {
+      let popupCount = 0;
+      const popupInterval = setInterval(() => {
+        spawnXPWindow(popupCount);
+        popupCount++;
+        if (popupCount > 12) {
+          clearInterval(popupInterval);
+          setTimeout(startComplexDatamosh, 900);
+        }
+      }, 200);
+    }
+
+    function spawnXPWindow(index) {
+      const win = document.createElement('div');
+      win.className = 'xp-window absolute w-80 z-20';
+      
+      const x = 70 + (index * 30);
+      const y = 50 + (index * 22);
+      win.style.left = x + 'px';
+      win.style.top = y + 'px';
+
+      win.innerHTML = `
+        <div class="xp-header px-3 py-1 flex justify-between items-center text-xs">
+          <span>XP_DIFFERENTIAL_0x0${index}.exe</span>
+          <button class="xp-close-btn px-2 text-white font-bold text-xs">X</button>
+        </div>
+        <div class="p-4 bg-[#ece9d8] text-black font-sans text-xs space-y-2">
+          <p class="font-bold text-red-600">CRITICAL BUFFER OVERFLOW</p>
+          <p class="text-slate-700">Synthesizing pop-art CMYK channels into XP kernel space...</p>
+        </div>
+      `;
+      desktop.appendChild(win);
+    }
+
+    // 5. COMPLEX DATAMOSH SYNTHESIS
+    function startComplexDatamosh() {
+      canvas.style.opacity = '1';
+      ctx.fillStyle = '#0055ea';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let frame = 0;
+      function moshLoop() {
+        frame++;
+
+        // Render XP Pop Art Resume Text onto canvas
+        ctx.font = '900 32px Space Grotesk';
+        ctx.fillStyle = '#ffff00';
+        ctx.fillText("FRANKSX // CREATIVE TECHNOLOGIST", 90, 130);
+        ctx.fillStyle = '#00ffff';
+        ctx.fillText("XP PARSER DIFFERENTIALS • REVERSE ENGINEERING", 90, 175);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText("CONTACT: 127.0.0.1-hire.me@proton.me", 90, 220);
+
+        // Datamosh pixel shift algorithm
+        for (let i = 0; i < 25; i++) {
+          const sw = Math.random() * 280 + 80;
+          const sh = Math.random() * 140 + 20;
+          const sx = Math.random() * (canvas.width - sw);
+          const sy = Math.random() * (canvas.height - sh);
+          
+          const dx = sx + (Math.random() * 50 - 25);
+          const dy = sy + (Math.random() * 18 - 9);
+
+          ctx.drawImage(canvas, sx, sy, sw, sh, dx, dy, sw, sh);
+        }
+
+        // Color overlay glitches
+        if (frame % 2 === 0) {
+          ctx.fillStyle = `rgba(255, 0, 85, 0.15)`;
+          ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 380, 60);
+        }
+
+        if (frame < 130) {
+          requestAnimationFrame(moshLoop);
+        } else {
+          setTimeout(triggerBSOD, 600);
+        }
+      }
+      requestAnimationFrame(moshLoop);
+    }
+
+    // 6. SYSTEM CRASH (XP BSOD)
+    function triggerBSOD() {
+      canvas.style.opacity = '0';
+      desktop.classList.add('hidden');
+      cursor.classList.add('hidden');
+      bsodScreen.classList.remove('hidden');
+    }
+
+    window.addEventListener('keydown', () => {
+      if (!bsodScreen.classList.contains('hidden')) {
+        location.reload();
+      }
+    });
+  </script>
+</body>
+</html>

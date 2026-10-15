@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrankSx // SPECTROGRAM_RESUME_TX_v1.0</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --phosphor: #ffb000;
+    --phosphor-dim: #7a4f00;
+    --phosphor-bright: #ffee00;
+    --bg: #000;
+    --glow: rgba(255,176,0,0.6);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #000; overflow: hidden; font-family: 'VT323', monospace; }
+
+  #stage {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    background: #000;
+  }
+
+  /* Spectrogram canvas fills background */
+  #spectrogram {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+  }
+
+  /* Scanlines */
+  #scanlines {
+    position: absolute; inset: 0; z-index: 5; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 4px
+    );
+  }
+
+  /* Vignette */
+  #vignette {
+    position: absolute; inset: 0; z-index: 6; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%);
+  }
+
+  /* HUD overlay */
+  #hud {
+    position: absolute; inset: 0; z-index: 10;
+    pointer-events: none;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    padding: 20px 28px;
+  }
+
+  .hud-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .hud-bottom {
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+
+  .hud-panel {
+    background: rgba(3,1,0,0.75);
+    border: 1px solid var(--phosphor-dim);
+    padding: 10px 16px;
+    color: var(--phosphor);
+    font-size: 14px;
+    line-height: 1.5;
+    text-shadow: 0 0 4px var(--glow);
+    pointer-events: auto;
+    backdrop-filter: blur(4px);
+  }
+
+  .hud-title {
+    font-size: 18px; letter-spacing: 0.15em;
+    color: var(--phosphor-bright);
+    text-shadow: 0 0 8px var(--glow);
+    margin-bottom: 4px;
+  }
+
+  .hud-stat {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .hud-stat label { color: var(--phosphor-dim); }
+  .hud-stat value { color: var(--phosphor-bright); }
+
+  .hud-bar {
+    width: 120px; height: 6px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--phosphor-dim);
+    overflow: hidden;
+  }
+  .hud-bar-fill {
+    height: 100%; background: var(--phosphor);
+    box-shadow: 0 0 6px var(--glow);
+    width: 0%;
+    transition: width 0.1s;
+  }
+
+  /* Decode panel (hidden in TX mode) */
+  #decode-panel {
+    position: absolute;
+    bottom: 80px; left: 50%; transform: translateX(-50%);
+    width: 90%; max-width: 900px; max-height: 35vh;
+    background: rgba(3,1,0,0.88);
+    border: 1px solid var(--phosphor);
+    padding: 16px 20px;
+    color: var(--phosphor);
+    font-size: 15px;
+    line-height: 1.5;
+    text-shadow: 0 0 4px var(--glow);
+    z-index: 15;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 0 40px rgba(255,176,0,0.1), inset 0 0 20px rgba(255,176,0,0.03);
+  }
+  #decode-panel.visible { display: block; }
+  #decode-panel::-webkit-scrollbar { width: 5px; }
+  #decode-panel::-webkit-scrollbar-thumb { background: var(--phosphor-dim); }
+
+  /* Controls */
+  #controls {
+    position: absolute;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 20;
+    text-align: center;
+    display: flex; flex-direction: column; gap: 16px;
+    align-items: center;
+  }
+
+  .btn {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    padding: 12px 32px;
+    background: rgba(3,1,0,0.8);
+    border: 1px solid var(--phosphor);
+    color: var(--phosphor);
+    cursor: pointer;
+    text-shadow: 0 0 6px var(--glow);
+    box-shadow: 0 0 20px rgba(255,176,0,0.1);
+    transition: all 0.2s;
+    letter-spacing: 0.1em;
+  }
+  .btn:hover {
+    background: rgba(255,176,0,0.1);
+    box-shadow: 0 0 30px rgba(255,176,0,0.3);
+    text-shadow: 0 0 12px var(--glow);
+  }
+  .btn:disabled {
+    opacity: 0.4; cursor: not-allowed;
+    border-color: var(--phosphor-dim);
+    color: var(--phosphor-dim);
+  }
+
+  .btn-row {
+    display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  }
+
+  /* Mode indicator */
+  #mode-indicator {
+    position: absolute;
+    top: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 20;
+    font-size: 13px;
+    color: var(--phosphor-dim);
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 4px var(--glow);
+  }
+  #mode-indicator.tx { color: var(--phosphor-bright); }
+  #mode-indicator.decode { color: #00ff66; text-shadow: 0 0 6px rgba(0,255,100,0.5); }
+
+  /* Frequency ruler */
+  #freq-ruler {
+    position: absolute;
+    left: 8px; top: 60px; bottom: 60px;
+    width: 40px; z-index: 8; pointer-events: none;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+    font-size: 10px; color: var(--phosphor-dim);
+    text-align: right; padding-right: 4px;
+  }
+
+  /* Time ruler */
+  #time-ruler {
+    position: absolute;
+    left: 60px; right: 20px; bottom: 8px;
+    height: 20px; z-index: 8; pointer-events: none;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px; color: var(--phosphor-dim);
+  }
+
+  /* Transmitting text overlay */
+  #tx-text {
+    position: absolute;
+    bottom: 100px; left: 50%; transform: translateX(-50%);
+    z-index: 12;
+    font-size: 28px;
+    color: var(--phosphor-bright);
+    text-shadow: 0 0 12px var(--glow), 0 0 24px var(--glow);
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  #tx-text.active { opacity: 1; }
+
+  @media (max-width: 768px) {
+    .hud-panel { font-size: 12px; padding: 8px 12px; }
+    .hud-title { font-size: 14px; }
+    #tx-text { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="spectrogram"></canvas>
+  <div id="scanlines"></div>
+  <div id="vignette"></div>
+
+  <div id="freq-ruler">
+    <span>8kHz</span><span>6kHz</span><span>4kHz</span><span>2kHz</span><span>0Hz</span>
+  </div>
+
+  <div id="time-ruler">
+    <span>-4s</span><span>-3s</span><span>-2s</span><span>-1s</span><span>0s</span>
+  </div>
+
+  <div id="hud">
+    <div class="hud-top">
+      <div class="hud-panel">
+        <div class="hud-title">SPECTROGRAM TX</div>
+        <div class="hud-stat"><label>MODE</label><value id="hud-mode">STANDBY</value></div>
+        <div class="hud-stat"><label>FFT</label><value>2048-bin</value></div>
+        <div class="hud-stat"><label>SR</label><value>48kHz</value></div>
+      </div>
+      <div class="hud-panel">
+        <div class="hud-stat"><label>SIGNAL</label><value id="hud-signal">-- dB</value></div>
+        <div class="hud-stat"><label>PEAK</label><value id="hud-peak">-- Hz</value></div>
+        <div class="hud-stat"><label>TX POS</label>
+          <div class="hud-bar"><div class="hud-bar-fill" id="tx-progress"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="hud-panel">
+        <div class="hud-stat"><label>CHAR</label><value id="hud-char">--</value></div>
+        <div class="hud-stat"><label>FREQ</label><value id="hud-freq">--</value></div>
+        <div class="hud-stat"><label>PHASE</label><value id="hud-phase">--</value></div>
+      </div>
+      <div class="hud-panel">
+        <div class="hud-stat"><label>BYTES</label><value id="hud-bytes">0</value></div>
+        <div class="hud-stat"><label>TIME</label><value id="hud-time">0.0s</value></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mode-indicator">STANDBY — CLICK TO INITIALIZE AUDIO CONTEXT</div>
+
+  <div id="tx-text"></div>
+
+  <div id="decode-panel"></div>
+
+  <div id="controls">
+    <div class="btn-row">
+      <button class="btn" id="btn-tx" onclick="startTransmit()">▶ TRANSMIT RESUME</button>
+      <button class="btn" id="btn-decode" onclick="toggleDecode()" disabled>☰ DECODE</button>
+      <button class="btn" id="btn-replay" onclick="replayLast()" disabled>↻ REPLAY</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="transmitSection('summary')">SUMMARY</button>
+      <button class="btn" onclick="transmitSection('skills')">SKILLS</button>
+      <button class="btn" onclick="transmitSection('projects')">PROJECTS</button>
+      <button class="btn" onclick="transmitSection('contact')">CONTACT</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// FRANKSx SPECTROGRAM RESUME TX v1.0
+// Audio-first resume. Each character is a frequency tone.
+// The spectrogram is the primary display surface.
+// ═══════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('spectrogram');
+const ctx = canvas.getContext('2d');
+const decodePanel = document.getElementById('decode-panel');
+const txText = document.getElementById('tx-text');
+const modeIndicator = document.getElementById('mode-indicator');
+
+let audioCtx = null;
+let analyser = null;
+let gainNode = null;
+let dataArray = null;
+let waterfall = null;
+let wfWidth = 0, wfHeight = 0;
+let wfHead = 0;
+
+let isTransmitting = false;
+let txIndex = 0;
+let txData = '';
+let txStartTime = 0;
+let decodedText = '';
+let lastTxData = '';
+
+// Resume sections
+const RESUME = {
+  summary: "FrankSx — Creative Technologist / Parser Researcher. Since 2004. I break parsers for fun. Feeding null bytes, malformed HTML, and computationally illogical data into systems that think they are too modern to fail.",
+  skills: "SKILLS: Reverse Engineering. HTML5 Arborist. SVG Canvas Pipelines. Firmware plus Embedded. Parser Fuzzing. Null Byte Injection. Bug Bounty.",
+  projects: "PROJECTS: Do I Have To Close — dropping </html> reopening as SVG. Alice Emergent Core — neural synapses, flocking, mutation. Regret Bytes — null byte torture for modern frameworks.",
+  contact: "CONTACT: franksx@proton.me — parser.lab — Available for hire.",
+  full: "FrankSx — Creative Technologist / Parser Researcher. Since 2004. I break parsers for fun. Feeding null bytes, malformed HTML, and computationally illogical data into systems that think they are too modern to fail. SKILLS: Reverse Engineering. HTML5 Arborist. SVG Canvas Pipelines. Firmware plus Embedded. Parser Fuzzing. Null Byte Injection. Bug Bounty. PROJECTS: Do I Have To Close — dropping </html> reopening as SVG. Alice Emergent Core — neural synapses, flocking, mutation. Regret Bytes — null byte torture for modern frameworks. CONTACT: franksx@proton.me — parser.lab — Available for hire."
+};
+
+// Frequency map: printable ASCII 32-126 -> 200Hz - 7800Hz
+// Each char gets a unique frequency with some spacing
+function charToFreq(c) {
+  const code = c.charCodeAt(0);
+  if (code < 32 || code > 126) return 100; // control chars = 100Hz rumble
+  // Map 32-126 (95 chars) to 300-7500Hz logarithmically for better spectrogram spread
+  const t = (code - 32) / 94;
+  return 300 + t * t * 7200; // quadratic spread for visual density
+}
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.3;
+
+  gainNode = audioCtx.createGain();
+  gainNode.gain.value = 0.08;
+  gainNode.connect(analyser);
+  analyser.connect(audioCtx.destination);
+
+  const bufferLength = analyser.frequencyBinCount;
+  dataArray = new Uint8Array(bufferLength);
+
+  // Waterfall: each column = one FFT frame
+  // Store as ImageData rows for speed
+  wfWidth = Math.floor(window.innerWidth / 2); // 2px per column for performance
+  wfHeight = bufferLength;
+  waterfall = ctx.createImageData(wfWidth, wfHeight);
+  wfHead = 0;
+
+  resizeCanvas();
+  requestAnimationFrame(drawLoop);
+}
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  // Re-create waterfall if size changed significantly
+  const newWfWidth = Math.floor(window.innerWidth / 2);
+  if (newWfWidth !== wfWidth) {
+    wfWidth = newWfWidth;
+    waterfall = ctx.createImageData(wfWidth, wfHeight);
+    wfHead = 0;
+  }
+}
+window.addEventListener('resize', resizeCanvas);
+
+// Color map: amplitude 0-255 -> phosphor palette
+function ampToColor(amp) {
+  // 0-30: black
+  // 30-80: dark amber
+  // 80-160: amber
+  // 160-220: bright amber
+  // 220-255: white-hot
+  if (amp < 30) return [0, 0, 0];
+  if (amp < 80) {
+    const t = (amp - 30) / 50;
+    return [Math.floor(40 * t), Math.floor(20 * t), 0];
+  }
+  if (amp < 160) {
+    const t = (amp - 80) / 80;
+    return [Math.floor(120 + 100 * t), Math.floor(60 + 80 * t), 0];
+  }
+  if (amp < 220) {
+    const t = (amp - 160) / 60;
+    return [Math.floor(220 + 35 * t), Math.floor(140 + 80 * t), Math.floor(20 * t)];
+  }
+  const t = (amp - 220) / 35;
+  return [255, Math.floor(220 + 35 * t), Math.floor(20 + 80 * t)];
+}
+
+function drawLoop() {
+  if (!analyser) { requestAnimationFrame(drawLoop); return; }
+
+  analyser.getByteFrequencyData(dataArray);
+
+  // Update HUD
+  let maxAmp = 0, maxBin = 0;
+  for (let i = 0; i < dataArray.length; i++) {
+    if (dataArray[i] > maxAmp) { maxAmp = dataArray[i]; maxBin = i; }
+  }
+  const peakFreq = Math.round(maxBin * audioCtx.sampleRate / 2 / dataArray.length);
+  document.getElementById('hud-signal').textContent = (maxAmp > 0 ? '-' + Math.max(0, Math.round(96 - maxAmp / 2.65)) : '--') + ' dB';
+  document.getElementById('hud-peak').textContent = (maxAmp > 10 ? peakFreq + ' Hz' : '-- Hz');
+
+  // Write new column into waterfall at wfHead
+  // Waterfall is stored top-to-bottom = low-to-high freq
+  // But we draw it rotated: x = time, y = freq (inverted so low freq at bottom)
+  const col = wfHead;
+  for (let y = 0; y < wfHeight && y < dataArray.length; y++) {
+    const amp = dataArray[y];
+    const [r, g, b] = ampToColor(amp);
+    const idx = (y * wfWidth + col) * 4;
+    waterfall.data[idx] = r;
+    waterfall.data[idx + 1] = g;
+    waterfall.data[idx + 2] = b;
+    waterfall.data[idx + 3] = 255;
+  }
+
+  wfHead = (wfHead + 1) % wfWidth;
+
+  // Draw: we want the newest data on the right
+  // So we draw the waterfall image starting at (wfHead + 1) to wrap around
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Scale the waterfall to fill the canvas
+  // We draw it as a single image, but we need to handle the circular buffer visually
+  // Simplest: draw two strips
+  const stripW = canvas.width / wfWidth;
+  const stripH = canvas.height / wfHeight;
+
+  // Draw from wfHead+1 to end (oldest data, left side)
+  // Then from 0 to wfHead (newest data, right side)
+  // Actually, let's just draw the whole thing scaled
+  // Create a temp canvas for the full waterfall
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = wfWidth;
+  tempCanvas.height = wfHeight;
+  const tctx = tempCanvas.getContext('2d');
+  tctx.putImageData(waterfall, 0, 0);
+
+  // Draw with the head at the right edge
+  ctx.save();
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-canvas.width / wfWidth, canvas.height / wfHeight);
+  // We want column wfHead to be at x=0 (right edge after flip), so shift
+  ctx.drawImage(tempCanvas, -wfHead, 0);
+  ctx.drawImage(tempCanvas, wfWidth - wfHead, 0);
+  ctx.restore();
+
+  // Draw a bright cursor line at the transmit position
+  if (isTransmitting) {
+    const cursorX = canvas.width - 40;
+    ctx.strokeStyle = 'rgba(255,255,200,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cursorX, 0);
+    ctx.lineTo(cursorX, canvas.height);
+    ctx.stroke();
+  }
+
+  requestAnimationFrame(drawLoop);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRANSMITTER
+// ═══════════════════════════════════════════════════════════════
+
+async function startTransmit() {
+  if (isTransmitting) return;
+  initAudio();
+  await audioCtx.resume();
+
+  txData = RESUME.full;
+  lastTxData = txData;
+  txIndex = 0;
+  decodedText = '';
+  decodePanel.innerHTML = '';
+  isTransmitting = true;
+
+  document.getElementById('btn-tx').disabled = true;
+  document.getElementById('btn-replay').disabled = true;
+  document.getElementById('btn-decode').disabled = false;
+  modeIndicator.textContent = 'TRANSMITTING — AUDIO ACTIVE';
+  modeIndicator.className = 'tx';
+  document.getElementById('hud-mode').textContent = 'TRANSMIT';
+
+  txStartTime = audioCtx.currentTime;
+  scheduleTx();
+}
+
+async function transmitSection(section) {
+  if (isTransmitting) return;
+  initAudio();
+  await audioCtx.resume();
+
+  txData = RESUME[section];
+  lastTxData = txData;
+  txIndex = 0;
+  decodedText = '';
+  decodePanel.innerHTML = '';
+  isTransmitting = true;
+
+  document.getElementById('btn-tx').disabled = true;
+  document.getElementById('btn-replay').disabled = true;
+  document.getElementById('btn-decode').disabled = false;
+  modeIndicator.textContent = 'TRANSMITTING ' + section.toUpperCase();
+  modeIndicator.className = 'tx';
+  document.getElementById('hud-mode').textContent = 'TX-' + section.toUpperCase();
+
+  txStartTime = audioCtx.currentTime;
+  scheduleTx();
+}
+
+function scheduleTx() {
+  if (!isTransmitting || txIndex >= txData.length) {
+    finishTransmit();
+    return;
+  }
+
+  const c = txData[txIndex];
+  const freq = charToFreq(c);
+  const now = audioCtx.currentTime;
+  const charTime = 0.09; // 90ms per char
+  const gapTime = 0.03;  // 30ms gap
+
+  // Play tone
+  const osc = audioCtx.createOscillator();
+  const charGain = audioCtx.createGain();
+
+  // Use sawtooth for rich harmonics (better spectrogram visibility)
+  osc.type = 'sawtooth';
+  osc.frequency.value = freq;
+
+  // Envelope
+  charGain.gain.setValueAtTime(0, now);
+  charGain.gain.linearRampToValueAtTime(0.15, now + 0.01);
+  charGain.gain.setValueAtTime(0.15, now + charTime - 0.01);
+  charGain.gain.exponentialRampToValueAtTime(0.001, now + charTime);
+
+  osc.connect(charGain);
+  charGain.connect(gainNode);
+  osc.start(now);
+  osc.stop(now + charTime);
+
+  // Add a second harmonic for spectral richness
+  const osc2 = audioCtx.createOscillator();
+  const g2 = audioCtx.createGain();
+  osc2.type = 'square';
+  osc2.frequency.value = freq * 2.01; // slight detune
+  g2.gain.setValueAtTime(0, now);
+  g2.gain.linearRampToValueAtTime(0.04, now + 0.01);
+  g2.gain.exponentialRampToValueAtTime(0.001, now + charTime);
+  osc2.connect(g2); g2.connect(gainNode);
+  osc2.start(now); osc2.stop(now + charTime);
+
+  // Random glitch: 5% chance of noise burst
+  if (Math.random() < 0.05) {
+    const noiseSize = Math.floor(audioCtx.sampleRate * 0.05);
+    const nbuf = audioCtx.createBuffer(1, noiseSize, audioCtx.sampleRate);
+    const ndata = nbuf.getChannelData(0);
+    for (let i = 0; i < noiseSize; i++) ndata[i] = (Math.random() * 2 - 1) * 0.3;
+    const nsrc = audioCtx.createBufferSource();
+    nsrc.buffer = nbuf;
+    const ng = audioCtx.createGain();
+    ng.gain.setValueAtTime(0.1, now);
+    ng.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    nsrc.connect(ng); ng.connect(gainNode);
+    nsrc.start(now);
+  }
+
+  // Update visual
+  txText.textContent = c === ' ' ? '␣' : c;
+  txText.classList.add('active');
+  document.getElementById('hud-char').textContent = c === ' ' ? 'SPACE' : c;
+  document.getElementById('hud-freq').textContent = Math.round(freq) + ' Hz';
+  document.getElementById('hud-phase').textContent = (txIndex / txData.length * 360).toFixed(1) + '°';
+  document.getElementById('hud-bytes').textContent = txIndex + 1;
+  document.getElementById('hud-time').textContent = (now - txStartTime).toFixed(2) + 's';
+  document.getElementById('tx-progress').style.width = (txIndex / txData.length * 100) + '%';
+
+  // Decode buffer
+  decodedText += c;
+  if (decodePanel.classList.contains('visible')) {
+    decodePanel.textContent = decodedText;
+    decodePanel.scrollTop = decodePanel.scrollHeight;
+  }
+
+  txIndex++;
+
+  // Schedule next
+  setTimeout(function() {
+    txText.classList.remove('active');
+    scheduleTx();
+  }, (charTime + gapTime) * 1000);
+}
+
+function finishTransmit() {
+  isTransmitting = false;
+  document.getElementById('btn-tx').disabled = false;
+  document.getElementById('btn-replay').disabled = false;
+  modeIndicator.textContent = 'TRANSMIT COMPLETE — DECODE AVAILABLE';
+  modeIndicator.className = '';
+  document.getElementById('hud-mode').textContent = 'COMPLETE';
+  document.getElementById('hud-char').textContent = '--';
+  document.getElementById('hud-freq').textContent = '--';
+  document.getElementById('tx-progress').style.width = '100%';
+  txText.classList.remove('active');
+
+  // Auto-show decode if not already visible
+  if (!decodePanel.classList.contains('visible')) {
+    toggleDecode();
+  }
+}
+
+function replayLast() {
+  if (!lastTxData || isTransmitting) return;
+  txData = lastTxData;
+  txIndex = 0;
+  decodedText = '';
+  decodePanel.innerHTML = '';
+  isTransmitting = true;
+  document.getElementById('btn-tx').disabled = true;
+  document.getElementById('btn-replay').disabled = true;
+  modeIndicator.textContent = 'REPLAYING LAST TRANSMISSION';
+  modeIndicator.className = 'tx';
+  document.getElementById('hud-mode').textContent = 'REPLAY';
+  txStartTime = audioCtx.currentTime;
+  scheduleTx();
+}
+
+function toggleDecode() {
+  decodePanel.classList.toggle('visible');
+  if (decodePanel.classList.contains('visible')) {
+    decodePanel.textContent = decodedText;
+    decodePanel.scrollTop = decodePanel.scrollHeight;
+    modeIndicator.textContent = 'DECODE MODE ACTIVE';
+    modeIndicator.className = 'decode';
+  } else {
+    modeIndicator.textContent = isTransmitting ? 'TRANSMITTING' : 'SPECTROGRAM VIEW';
+    modeIndicator.className = isTransmitting ? 'tx' : '';
+  }
+}
+
+// Click anywhere to init audio context (browser policy)
+document.addEventListener('click', function() {
+  if (!audioCtx) {
+    initAudio();
+    audioCtx.resume();
+    modeIndicator.textContent = 'AUDIO CONTEXT READY — CLICK TRANSMIT';
+  }
+}, { once: true });
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  if (e.key === ' ' && !isTransmitting) { e.preventDefault(); startTransmit(); }
+  if (e.key === 'd' || e.key === 'D') toggleDecode();
+  if (e.key === 'r' || e.key === 'R') replayLast();
+});
+</script>
+</body>
+</html>

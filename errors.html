@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrankSx Error Screen Montage</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Grotesk:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  * { user-select: none; box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* CRT Filter Overlay */
+  .crt::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+    background-size: 100% 4px;
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  /* Retro Win95 Window */
+  .win95-box {
+    background: #c0c0c0;
+    border: 3px solid;
+    border-color: #ffffff #404040 #404040 #ffffff;
+    box-shadow: 6px 6px 0px #000;
+  }
+  .win95-header {
+    background: linear-gradient(90deg, #000080, #1084d0);
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  /* XP Window Styling */
+  .xp-box {
+    background: #ece9d8;
+    border: 3px solid #0055ea;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 6px 6px 16px rgba(0,0,0,0.6);
+  }
+  .xp-header {
+    background: linear-gradient(180deg, #0058ee 0%, #3a93ff 8%, #0055ea 90%, #0045ab 100%);
+    color: white;
+    font-weight: bold;
+    border-radius: 5px 5px 0 0;
+  }
+
+  /* Pop Art Styling */
+  .pop-box {
+    background: #ffff00;
+    border: 5px solid #000;
+    box-shadow: 10px 10px 0px #ff0055;
+  }
+
+  /* Transition Screen Fade */
+  .montage-slide {
+    display: none;
+    position: absolute;
+    inset: 0;
+  }
+  .montage-slide.active {
+    display: flex;
+  }
+</style>
+</head>
+<body class="crt w-screen h-screen relative bg-black text-white">
+
+  <!-- TOP OVERLAY STATUS BAR -->
+  <div class="fixed top-0 left-0 right-0 z-[1000] bg-red-600 text-white font-mono text-xs px-4 py-1 flex justify-between items-center border-b-2 border-black">
+    <span class="font-bold tracking-widest">FRANKSX ERROR MONTAGE // SYSTEM DIAGNOSTICS</span>
+    <span id="slideCounter">SCENE 1 / 6</span>
+  </div>
+
+  <!-- SLIDE 1: MS-DOS KERNEL PANIC -->
+  <div class="montage-slide active items-center justify-center p-8 bg-black text-green-500 font-mono text-lg">
+    <div class="max-w-3xl w-full border-2 border-green-500 p-6 bg-black space-y-4 shadow-[0_0_20px_rgba(0,255,0,0.3)]">
+      <div class="border-b border-green-800 pb-2 text-green-300 font-bold flex justify-between">
+        <span>FRANKSX_DOS_DIAGNOSTICS v2.04</span>
+        <span class="animate-pulse">ALERT</span>
+      </div>
+      <p>> CRITICAL: Parser Differential Buffer Overflow at Segment 0x4F0A[cite: 2]</p>
+      <p>> Faulting Module: FRANKSX_POLYGLOT.SYS[cite: 2]</p>
+      <p class="text-yellow-400">> Warning: Base64 stage payload corrupted in memory structure.[cite: 2]</p>
+      <div class="bg-green-950/40 p-4 border border-green-800 text-xs space-y-1 text-green-400">
+        <p>EAX: 00004F0A EBX: C0011E36 ECX: 00000000 EDX: FRANKSX0</p>
+        <p>Stack trace: 0x80004005 -> 0x800401E5 -> 0x0000000E</p>
+      </div>
+      <p class="text-red-500 animate-pulse font-bold">> TERMINATING SYSTEM EXECUTION...</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: WINDOWS 95 FATAL EXCEPTION 0E -->
+  <div class="montage-slide items-center justify-center p-6 bg-[#008080]">
+    <div class="win95-box max-w-lg w-full p-1">
+      <div class="win95-header px-2 py-1 flex justify-between items-center">
+        <span>System Error - FrankSx Kernel</span>
+        <button class="bg-gray-300 text-black px-2 text-xs font-bold border border-black">X</button>
+      </div>
+      <div class="p-6 bg-[#c0c0c0] text-black font-sans text-xs space-y-4">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-black text-2xl border-2 border-black">!</div>
+          <div class="space-y-2">
+            <p class="font-bold text-sm">A fatal exception 0E has occurred at 0028:C0011E36 in FrankSx VXD.[cite: 2]</p>
+            <p>The application "Parser_Differential.exe" will be terminated.[cite: 2]</p>
+          </div>
+        </div>
+        <div class="bg-white border border-gray-600 p-2 font-mono text-[11px] text-red-700">
+          Error Code: 0x80004005 (FRANKSX_BUFFER_MISMATCH)
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button class="bg-[#c0c0c0] px-4 py-1 border-2 border-white border-r-gray-800 border-b-gray-800 font-bold">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: WINDOWS XP LUNA STOP ERROR -->
+  <div class="montage-slide items-center justify-center p-6 bg-[#003399]">
+    <div class="xp-box max-w-xl w-full">
+      <div class="xp-header px-4 py-2 flex justify-between items-center text-sm">
+        <span>FrankSx.exe - System Error</span>
+        <span class="bg-red-500 text-white font-bold px-2 rounded">X</span>
+      </div>
+      <div class="p-6 bg-[#ece9d8] text-black font-sans text-xs space-y-4">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white font-black text-3xl border-2 border-white shadow-md">X</div>
+          <div>
+            <h3 class="font-bold text-sm text-blue-900">DRIVER_IRQL_NOT_LESS_OR_EQUAL</h3>
+            <p class="text-slate-700">Windows has encountered an unrecoverable FrankSx parser state.[cite: 2]</p>
+          </div>
+        </div>
+        <div class="bg-blue-950 text-cyan-300 p-3 rounded font-mono text-[11px] space-y-1">
+          <p>*** STOP: 0x0000000A (0x00000002, 0x00000000, 0x804E5B20)</p>
+          <p>*** FRANKSX_PARSER.SYS - Address F86B5A12 base at F86B0000</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: POP ART CMYK OVERFLOW -->
+  <div class="montage-slide items-center justify-center p-8 bg-[#ff0055]">
+    <div class="pop-box max-w-xl w-full p-6 text-black space-y-4">
+      <div class="bg-black text-yellow-300 p-2 font-black text-2xl tracking-wider uppercase">
+        POP ART // FRANKSX CRASH
+      </div>
+      <p class="font-black text-lg">CMYK BUFFER DIFFERENTIAL OVERFLOW DETECTED!</p>
+      <div class="bg-white border-4 border-black p-4 font-mono text-sm space-y-2">
+        <p class="font-bold text-purple-700">> FrankSx | Creative Technologist[cite: 2]</p>
+        <p class="text-xs">> Reverse Engineering • Generative Art • Polyglots[cite: 2]</p>
+        <p class="text-xs text-red-600">> Status: Moshing Canvas Frame Buffer Stream...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: macOS KERNEL PANIC -->
+  <div class="montage-slide items-center justify-center p-12 bg-gray-900 text-slate-200">
+    <div class="max-w-2xl w-full bg-black/90 border border-slate-700 rounded-lg p-8 space-y-4 font-mono text-xs shadow-2xl">
+      <div class="flex items-center gap-2 text-red-400 font-bold border-b border-slate-800 pb-2">
+        <span class="w-3 h-3 bg-red-500 rounded-full inline-block"></span>
+        <span>Kernel Panic: FrankSx Polyglot Module Failed</span>
+      </div>
+      <p>panic(cpu 2 caller 0xffffff8001e4a2d1): "FrankSx parser differential mismatch detected"@/SourceCache/xnu/xnu-2782.1.97/osfmk/kern/system.c:1402</p>
+      <p class="text-slate-400">Backtrace (CPU 2), Frame : Return Address</p>
+      <p class="text-slate-500">0xffffff801c40b9b0 : 0xffffff80002d2807</p>
+      <p class="text-slate-500">0xffffff801c40bA30 : 0xffffff800030560a</p>
+      <div class="text-yellow-400 pt-2 border-t border-slate-800">
+        System Model: FrankSx Hardware Research Rig v4
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: CLASSIC BLUE SCREEN OF DEATH (BSOD) -->
+  <div class="montage-slide items-center justify-center p-12 bg-[#0000AA] text-white font-mono text-sm">
+    <div class="max-w-2xl space-y-6">
+      <div class="bg-white text-[#0000AA] inline-block px-2 font-bold">Windows / FrankSx</div>
+      <p>An exception 0E has occurred at 0028:C0011E36 in VXD FRANKSX(01) + 00010E36[cite: 2]. The current application will be terminated[cite: 2].</p>
+      <ul class="list-disc pl-6 space-y-2 text-xs text-slate-300">
+        <li>Press any key to restart the error screen sequence.</li>
+        <li>Press CTRL+ALT+DEL to reboot FrankSx OS.</li>
+      </ul>
+      <p class="pt-8 text-center animate-pulse text-yellow-300">SYSTEM REBOOTING AUTOMATICALLY _</p>
+    </div>
+  </div>
+
+  <script>
+    const slides = document.querySelectorAll('.montage-slide');
+    const counter = document.getElementById('slideCounter');
+    let currentSlide = 0;
+
+    function showNextSlide() {
+      slides[currentSlide].classList.remove('active');
+      currentSlide = (currentSlide + 1) % slides.length;
+      slides[currentSlide].classList.add('active');
+      counter.textContent = `SCENE ${currentSlide + 1} / ${slides.length}`;
+    }
+
+    // Auto-advance slides every 3.5 seconds
+    setInterval(showNextSlide, 3500);
+  </script>
+</body>
+</html>
