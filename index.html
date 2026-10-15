@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrankSx // VIVIDVECTORS26 — PARSER FOREST GATEWAY</title>
+<meta name="description" content="Random gateway into the VividVectors26 parser forest. One visitor, one piece, zero choice. New skin + live generative FX every load.">
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:wght@400;700&family=Space+Grotesk:wght@700;900&family=JetBrains+Mono:wght@400;700&family=Tahoma&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════════════════════
+     SKIN SYSTEM — JS rolls one SKINS[] entry per load and
+     injects the full CSS variable set + pairs it with a live
+     generative FX effect rendered on #fx canvas.
+     ═══════════════════════════════════════════════════════════ */
+  :root {
+    --phosphor: #ffb000;
+    --phosphor-dim: #7a4f00;
+    --phosphor-bright: #ffee00;
+    --bg: #030100;
+    --glow: rgba(255,176,0,0.6);
+    --ok: #00ff66;
+    --err: #ff0033;
+    --wave1: #00ffff;
+    --wave2: #ff0055;
+    --scanline-a: 0.25;
+    --scanline-size: 4px;
+    --curvature: 24px;
+    --bezel: #1a0a00;
+    --halftone: 0;
+    --halftone-c: #000;
+    --font: 'VT323', monospace;
+    --fx-opacity: 0.32;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #000; overflow: hidden; }
+
+  #crt {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 2vmin;
+  }
+  #screen {
+    position: relative;
+    width: 100%; max-width: 1100px;
+    min-height: 92vh;
+    background: var(--bg);
+    border-radius: var(--curvature);
+    overflow: hidden;
+    transform: perspective(1000px) rotateX(1.2deg);
+    box-shadow:
+      inset 0 0 120px rgba(0,0,0,0.95),
+      inset 0 0 40px rgba(0,0,0,0.9),
+      0 0 0 4px var(--bezel), 0 0 0 8px #080300,
+      0 0 100px var(--glow);
+  }
+  #screen.flat {
+    transform: none;
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.5), 0 0 0 4px var(--bezel), 0 0 100px var(--glow);
+  }
+
+  /* ── generative FX layer ── */
+  #fx {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 5;
+    opacity: var(--fx-opacity);
+    mix-blend-mode: screen;
+    filter: blur(1px) saturate(1.2);
+    transition: opacity 0.5s;
+  }
+  #fx.multiply { mix-blend-mode: multiply; filter: blur(2px) saturate(1.4); }
+  #fx-dim {
+    position: absolute; inset: 0; z-index: 6; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.55) 100%);
+  }
+
+  #scanlines {
+    position: absolute; inset: 0; z-index: 20; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,var(--scanline-a)) 2px,
+      rgba(0,0,0,var(--scanline-a)) var(--scanline-size)
+    );
+    animation: drift 0.05s linear infinite;
+  }
+  @keyframes drift { to { background-position: 0 var(--scanline-size); } }
+
+  #halftone {
+    position: absolute; inset: 0; z-index: 19; pointer-events: none;
+    background-image: radial-gradient(var(--halftone-c) 20%, transparent 20%);
+    background-size: 10px 10px;
+    opacity: var(--halftone);
+  }
+
+  #vignette {
+    position: absolute; inset: 0; z-index: 21; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.75) 100%);
+  }
+
+  #skin-flash {
+    position: absolute; inset: 0; z-index: 40; pointer-events: none;
+    background: var(--phosphor); mix-blend-mode: difference; opacity: 0;
+  }
+
+  #terminal {
+    position: relative; z-index: 10;
+    padding: 5vmin 6vmin;
+    color: var(--phosphor);
+    font-family: var(--font);
+    font-size: clamp(16px, 2.4vmin, 26px);
+    line-height: 1.35;
+    text-shadow: 0 0 3px var(--phosphor), 0 0 10px var(--glow);
+    min-height: 92vh;
+    display: flex; flex-direction: column;
+    transition: color 0.4s;
+  }
+
+  .bright { color: var(--phosphor-bright); text-shadow: 0 0 6px var(--phosphor-bright), 0 0 16px var(--glow); }
+  .dim { color: var(--phosphor-dim); text-shadow: none; }
+  .ok { color: var(--ok); text-shadow: 0 0 6px var(--ok); }
+  .err { color: var(--err); text-shadow: 0 0 8px var(--err); }
+  .wave1 { color: var(--wave1); text-shadow: 0 0 6px var(--wave1); }
+  .wave2 { color: var(--wave2); text-shadow: 0 0 6px var(--wave2); }
+
+  .cursor {
+    display: inline-block; width: 0.6em; height: 1.1em;
+    background: var(--phosphor); vertical-align: text-bottom;
+    animation: blink 0.6s step-end infinite;
+    box-shadow: 0 0 8px var(--glow);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #gate {
+    margin-top: auto;
+    padding-top: 3vmin;
+    border-top: 1px dashed var(--phosphor-dim);
+    font-size: clamp(12px, 1.7vmin, 18px);
+    line-height: 1.6;
+  }
+  #gate a {
+    color: var(--phosphor);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--phosphor-dim);
+    cursor: pointer;
+  }
+  #gate a:hover { color: var(--phosphor-bright); border-bottom-color: var(--phosphor-bright); text-shadow: 0 0 8px var(--glow); }
+  #gate .cols { column-count: 2; column-gap: 3em; margin-top: 1vmin; }
+  @media (max-width: 720px) { #gate .cols { column-count: 1; } }
+
+  #selection {
+    font-size: clamp(20px, 3.4vmin, 38px);
+    margin: 2vmin 0;
+    min-height: 1.4em;
+  }
+  #countdown { font-size: clamp(28px, 5vmin, 56px); color: var(--err); }
+
+  .chip {
+    display: inline-block; margin: 1vmin 1vmin 0 0;
+    font-size: clamp(12px, 1.7vmin, 18px);
+    cursor: pointer; user-select: none;
+    border: 1px solid currentColor; padding: 2px 14px;
+  }
+  #reroll { color: var(--ok); text-shadow: 0 0 6px var(--ok); }
+  #reroll:hover { background: color-mix(in srgb, var(--ok) 10%, transparent); }
+  #skinbtn { color: var(--phosphor-bright); text-shadow: 0 0 6px var(--glow); }
+  #skinbtn:hover { background: color-mix(in srgb, var(--phosphor-bright) 10%, transparent); }
+  #fxbtn { color: var(--wave1); text-shadow: 0 0 6px var(--wave1); }
+  #fxbtn:hover { background: color-mix(in srgb, var(--wave1) 10%, transparent); }
+</style>
+</head>
+<body>
+
+<div id="crt">
+  <div id="screen">
+    <canvas id="fx"></canvas>
+    <div id="fx-dim"></div>
+    <div id="halftone"></div>
+    <div id="scanlines"></div>
+    <div id="vignette"></div>
+    <div id="skin-flash"></div>
+    <div id="terminal">
+      <div><span class="bright" id="masthead">FRANKSx // VIVIDVECTORS26 — PARSER FOREST GATEWAY v1.0</span></div>
+      <div class="dim">One visitor :: One piece :: Zero choice. <span id="skinbadge"></span></div>
+      <div>&nbsp;</div>
+      <div id="log"></div>
+      <div id="selection"></div>
+      <div id="countdown"></div>
+      <div>
+        <span class="chip" id="reroll" onclick="reroll()" style="display:none">[R] RE-ROLL DESTINATION</span>
+        <span class="chip" id="skinbtn" onclick="cycleSkin()" style="display:none">[F2] SKIN</span>
+        <span class="chip" id="fxbtn" onclick="cycleFx()" style="display:none">[F3] FX</span>
+      </div>
+      <div id="gate">
+        <span class="dim">// Or bypass the forest — direct sector access:</span>
+        <div class="cols" id="direct"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// VIVIDVECTORS26 GATEWAY
+// Random skin + live generative FX per load, weighted random
+// bounce into the forest. FX are the collection's own techniques,
+// rebuilt in 2D canvas so the page stays single-file and light.
+// ═══════════════════════════════════════════════════════════════
+
+const PIECES = [
+  { file: 'endlessjpeg%28bright-hypercolor%29.html', name: 'ENDLESS JPEG',            tag: 'generative decay',       w: 2 },
+  { file: 'franksx_endless_q3-26.html',              name: 'ENDLESS Q3-26',           tag: 'identity site',          w: 2 },
+  { file: 'PsyPFE.html',                             name: 'PARSER FOREST ENGINE',    tag: 'shader + 3-layer stego', w: 3 },
+  { file: 'QUANTUM_ECHO_v2.html',                    name: 'QUANTUM ECHO v2',         tag: 'audio ⊗ vision',         w: 3 },
+  { file: 'neural_dissonance.html',                  name: 'NEURAL DISSONANCE',       tag: '5-layer vault',          w: 3 },
+  { file: 'Franksx-Resume-meta-macos.html',          name: 'RESUME [META-MACOS]',     tag: 'the coda',               w: 1 },
+  { file: 'errors.html',                             name: 'ERROR MONTAGE',           tag: 'museum of failure',      w: 2 },
+  { file: 'Totalcorrupted.html',                     name: 'CORRUPTED BOOT v5',       tag: 'CRT theater',            w: 2 },
+  { file: 'franksx_corrupted_v6.html',               name: 'CORRUPTED BOOT v6',       tag: 'full fake OS',           w: 3 },
+  { file: 'franksx_spectrogram_resume.html',         name: 'SPECTROGRAM RESUME TX',   tag: 'text → tone → FFT',      w: 3 },
+  { file: 'xp.html',                                 name: 'WINDOWS XP EDITION',      tag: 'OS tragedy',             w: 1 },
+  { file: 'y2k.html',                                name: 'Y2K SYSTEM BOOT',         tag: 'OS tragedy',             w: 1 },
+  { file: 'y2kpopart.html',                          name: 'Y2K POP ART SYNTH',       tag: 'OS tragedy + stego',     w: 2 },
+  { file: 'y2kv2.html',                              name: 'Y2K POLYGLOT SYNTH',      tag: 'OS tragedy + stego',     w: 2 },
+];
+
+// ── SKINS :: each pairs a full variable set with a generative FX ──
+const SKINS = [
+  { name: 'PHOSPHOR AMBER', fx: 'endlessjpeg',
+    vars: { '--phosphor':'#ffb000','--phosphor-dim':'#7a4f00','--phosphor-bright':'#ffee00','--bg':'#030100','--glow':'rgba(255,176,0,0.6)','--ok':'#00ff66','--err':'#ff0033','--wave1':'#00ffff','--wave2':'#ff0055','--scanline-a':'0.25','--curvature':'24px','--halftone':'0','--font':"'VT323', monospace" },
+    cls: '' },
+
+  { name: 'CYAN TERMINAL', fx: 'rain',
+    vars: { '--phosphor':'#00e5ff','--phosphor-dim':'#005866','--phosphor-bright':'#a8f4ff','--bg':'#010507','--glow':'rgba(0,229,255,0.55)','--ok':'#7dff9a','--err':'#ff3b6b','--wave1':'#ffb000','--wave2':'#c07aff','--scanline-a':'0.18','--curvature':'8px','--halftone':'0','--font':"'JetBrains Mono', monospace" },
+    cls: 'flat' },
+
+  { name: 'MATRIX GREEN', fx: 'feedback',
+    vars: { '--phosphor':'#33ff66','--phosphor-dim':'#0d5c22','--phosphor-bright':'#b6ffcb','--bg':'#000a02','--glow':'rgba(51,255,102,0.5)','--ok':'#ffd23f','--err':'#ff3355','--wave1':'#00e5ff','--wave2':'#ff9d00','--scanline-a':'0.35','--scanline-size':'3px','--curvature':'24px','--halftone':'0','--font':"'VT323', monospace" },
+    cls: '' },
+
+  { name: 'MAGENTA OVERDRIVE', fx: 'plasma',
+    vars: { '--phosphor':'#ff2bd6','--phosphor-dim':'#6b0f5c','--phosphor-bright':'#ffb3ef','--bg':'#0a0108','--glow':'rgba(255,43,214,0.6)','--ok':'#00ffd0','--err':'#ffe600','--wave1':'#00e5ff','--wave2':'#ffb000','--scanline-a':'0.22','--curvature':'32px','--halftone':'0','--font':"'Space Mono', monospace" },
+    cls: '' },
+
+  { name: 'XP LUNA [LIGHT]', fx: 'orbits',
+    vars: { '--phosphor':'#123b7a','--phosphor-dim':'#7a93b8','--phosphor-bright':'#003c9e','--bg':'#ece9d8','--glow':'rgba(0,85,234,0.25)','--ok':'#1a7a2e','--err':'#c93217','--wave1':'#0055ea','--wave2':'#e7664e','--scanline-a':'0','--curvature':'8px','--halftone':'0','--font':"'Tahoma', sans-serif",'--bezel':'#0055ea','--fx-opacity':'0.5' },
+    cls: 'flat', fxBlend: 'multiply' },
+
+  { name: 'POP ART HALFTONE', fx: 'plasma',
+    vars: { '--phosphor':'#000000','--phosphor-dim':'#555555','--phosphor-bright':'#ff0055','--bg':'#ffff00','--glow':'rgba(255,0,85,0.3)','--ok':'#0055ff','--err':'#ff0055','--wave1':'#00ffff','--wave2':'#ff0055','--scanline-a':'0','--curvature':'0px','--halftone':'0.25','--font':"'Space Grotesk', sans-serif",'--bezel':'#000','--fx-opacity':'0.55' },
+    cls: 'flat', fxBlend: 'multiply' },
+
+  { name: 'VOID WHITE', fx: 'tunnel',
+    vars: { '--phosphor':'#e8e8e8','--phosphor-dim':'#5c5c5c','--phosphor-bright':'#ffffff','--bg':'#050505','--glow':'rgba(255,255,255,0.35)','--ok':'#8affc1','--err':'#ff5470','--wave1':'#9ad1ff','--wave2':'#d09aff','--scanline-a':'0.08','--curvature':'14px','--halftone':'0','--font':"'JetBrains Mono', monospace" },
+    cls: '' },
+];
+
+// ── FX ENGINE :: 2D-canvas rebuilds of the collection's techniques ──
+const fxCanvas = document.getElementById('fx');
+const fxCtx = fxCanvas.getContext('2d');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let fxActive = 'plasma';
+let fxBlendMode = '';
+const FX = {};
+const fxState = {};   // per-effect scratch storage
+
+function fxResize() {
+  fxCanvas.width = Math.floor(window.innerWidth * 0.5);   // half-res: blur hides it, CPU says thanks
+  fxCanvas.height = Math.floor(window.innerHeight * 0.5);
+}
+window.addEventListener('resize', fxResize);
+fxResize();
+
+// 1. ENDLESS JPEG — the collection's signature: plasma → JPEG re-encode → display, generational decay
+FX.endlessjpeg = function(ctx, w, h, t, dt) {
+  if (!fxState.ej) {
+    fxState.ej = { src: document.createElement('canvas'), img: new Image(), last: 0 };
+    fxState.ej.src.width = 192;
+    fxState.ej.src.height = Math.round(192 * h / w);
+  }
+  const st = fxState.ej, sc = st.src.getContext('2d');
+  const img = sc.createImageData(st.src.width, st.src.height);
+  const d = img.data;
+  for (let y = 0; y < st.src.height; y++) {
+    for (let x = 0; x < st.src.width; x++) {
+      const v = Math.sin(x*0.09 + t) + Math.sin(y*0.07 - t*1.2) + Math.sin((x+y)*0.05 + t*0.6) + Math.sin(Math.sqrt(x*x+y*y)*0.08);
+      const i = (y*st.src.width + x)*4;
+      d[i]   = 128 + 120*Math.sin(v + t);
+      d[i+1] = 128 + 120*Math.sin(v*1.3 + 2.1 + t);
+      d[i+2] = 128 + 120*Math.sin(v*0.7 + 4.2 - t);
+      d[i+3] = 255;
+    }
+  }
+  sc.putImageData(img, 0, 0);
+
+  // the ritual: re-encode through the JPEG codec every ~140ms
+  if (t - st.last > 0.14) {
+    st.last = t;
+    st.img.onload = () => {};
+    st.img.src = st.src.toDataURL('image/jpeg', 0.65);
+  }
+  // feedback smear ⟲
+  ctx.globalAlpha = 0.10;
+  ctx.drawImage(fxCanvas, 1, 0);
+  ctx.globalAlpha = 1;
+  if (st.img.complete && st.img.naturalWidth) ctx.drawImage(st.img, 0, 0, w, h);
+};
+
+// 2. PLASMA — layered sines + cosine palette (IQ palette, 2D-flavored)
+FX.plasma = function(ctx, w, h, t) {
+  const res = 3; // pixel chunk size for that chunky psychedelic grid
+  for (let y = 0; y < h; y += res) {
+    for (let x = 0; x < w; x += res) {
+      const v = Math.sin(x*0.045 + t) + Math.sin(y*0.05 - t*0.8)
+              + Math.sin((x + y)*0.03 + t*0.5) + Math.sin(Math.hypot(x - w/2, y - h/2)*0.06 - t);
+      const r = 128 + 127*Math.sin(v*1.0 + t);
+      const g = 128 + 127*Math.sin(v*1.3 + 2.1);
+      const b = 128 + 127*Math.sin(v*0.7 + 4.2 + t*0.5);
+      ctx.fillStyle = 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
+      ctx.fillRect(x, y, res, res);
+    }
+  }
+};
+
+// 3. TUNNEL — polar warp starfield (DMT Tunnel's 2D cousin)
+FX.tunnel = function(ctx, w, h, t) {
+  if (!fxState.tunnel) {
+    fxState.tunnel = Array.from({length: 220}, () => ({
+      a: Math.random()*Math.PI*2, z: Math.random()*1 + 0.05, s: 0.15 + Math.random()*0.5
+    }));
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(0, 0, w, h);
+  const cx = w/2 + Math.sin(t*0.7)*20, cy = h/2 + Math.cos(t*0.9)*14;
+  for (const p of fxState.tunnel) {
+    p.z -= p.s * 0.016;
+    if (p.z <= 0.05) { p.z = 1; p.a = Math.random()*Math.PI*2; }
+    const r = 0.35 / p.z;
+    const x = cx + Math.cos(p.a + t*0.2) * r * w * 0.25;
+    const y = cy + Math.sin(p.a + t*0.2) * r * h * 0.25;
+    const size = Math.min(5, (1 - p.z) * 4);
+    const hue = (t*40 + p.a*57) % 360;
+    ctx.fillStyle = 'hsl('+hue+',100%,'+(60+(1-p.z)*30)+'%)';
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI*2);
+    ctx.fill();
+  }
+};
+
+// 4. FEEDBACK — recursive zoom/rotate smear (generational decay, raw)
+FX.feedback = function(ctx, w, h, t) {
+  ctx.save();
+  ctx.translate(w/2, h/2);
+  ctx.rotate(0.004 + Math.sin(t*0.3)*0.002);
+  ctx.scale(1.015, 1.015);
+  ctx.globalAlpha = 0.94;
+  ctx.drawImage(fxCanvas, -w/2, -h/2);
+  ctx.restore();
+  // seed: wandering bright block so the feedback has something to eat
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = 'hsl('+(t*60%360)+',100%,60%)';
+  ctx.fillRect(w/2 + Math.sin(t*1.1)*w*0.3 - 30, h/2 + Math.cos(t*0.8)*h*0.3 - 6, 60, 12);
+  ctx.globalAlpha = 1;
+};
+
+// 5. RAIN — glyph columns falling (Matrix rain, halved)
+FX.rain = function(ctx, w, h, t) {
+  if (!fxState.rain) {
+    fxState.rain = { cols: Math.floor(w/14), drops: [] };
+    for (let i = 0; i < fxState.rain.cols; i++) fxState.rain.drops[i] = Math.random()*h;
+  }
+  const st = fxState.rain;
+  ctx.fillStyle = 'rgba(0,0,0,0.14)';
+  ctx.fillRect(0, 0, w, h);
+  ctx.font = '12px VT323, monospace';
+  for (let i = 0; i < st.cols; i++) {
+    const ch = String.fromCharCode(0x30A0 + Math.floor(Math.random()*96));
+    const x = i*14, y = st.drops[i];
+    ctx.fillStyle = Math.random() > 0.975 ? '#ffffff' : 'hsl('+(t*50%360)+',100%,55%)';
+    ctx.fillText(ch, x, y);
+    st.drops[i] = y > h + 20 ? 0 : y + 14;
+  }
+};
+
+// 6. ORBITS — additive gradient blobs (Q3-26 background technique)
+FX.orbits = function(ctx, w, h, t) {
+  ctx.fillStyle = fxBlendMode === 'multiply' ? 'rgba(236,233,216,0.16)' : 'rgba(0,0,0,0.16)';
+  ctx.fillRect(0, 0, w, h);
+  ctx.globalCompositeOperation = fxBlendMode === 'multiply' ? 'multiply' : 'lighter';
+  for (let i = 0; i < 5; i++) {
+    const x = w/2 + Math.sin(t*0.5 + i*1.9) * w*0.32;
+    const y = h/2 + Math.cos(t*0.4 + i*2.4) * h*0.30;
+    const r = 60 + Math.sin(t + i)*20;
+    const hue = (t*30 + i*72) % 360;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'hsla('+hue+',100%,60%,0.9)');
+    g.addColorStop(1, 'hsla('+hue+',100%,60%,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+};
+
+// ── FX runtime ──
+let fxLast = performance.now();
+function fxLoop(now) {
+  const dt = (now - fxLast) / 1000;
+  fxLast = now;
+  const t = now / 1000;
+  const fn = FX[fxActive];
+  if (fn) fn(fxCtx, fxCanvas.width, fxCanvas.height, t, dt);
+  requestAnimationFrame(fxLoop);
+}
+if (!reduceMotion) requestAnimationFrame((n) => { fxLast = n; requestAnimationFrame(fxLoop); });
+
+function setFx(name, blend) {
+  fxActive = name;
+  fxBlendMode = blend || '';
+  fxCanvas.classList.toggle('multiply', fxBlendMode === 'multiply');
+  fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+  for (const k in fxState) delete fxState[k];   // reset scratch
+}
+
+// ── SKIN application ──
+const root = document.documentElement;
+const screen = document.getElementById('screen');
+const flash = document.getElementById('skin-flash');
+const logEl = document.getElementById('log');
+const selEl = document.getElementById('selection');
+const cdEl  = document.getElementById('countdown');
+const rerollEl = document.getElementById('reroll');
+const skinBtn = document.getElementById('skinbtn');
+const fxBtn = document.getElementById('fxbtn');
+const skinBadge = document.getElementById('skinbadge');
+const directEl = document.getElementById('direct');
+
+let skinIndex = Math.floor(Math.random() * SKINS.length);
+let fxOverride = null;
+
+function applySkin(i, announce) {
+  skinIndex = ((i % SKINS.length) + SKINS.length) % SKINS.length;
+  const s = SKINS[skinIndex];
+  for (const k in s.vars) root.style.setProperty(k, s.vars[k]);
+  ['--scanline-size','--bezel','--fx-opacity','--halftone-c'].forEach(v => {
+    if (!(v in s.vars)) root.style.removeProperty(v);
+  });
+  screen.className = s.cls;
+  if (!fxOverride) setFx(s.fx, s.fxBlend);
+  skinBadge.innerHTML = ':: SKIN — <span class="bright">' + s.name + '</span> + FX — ' + (fxOverride || s.fx).toUpperCase() + ' [F2 skin / F3 fx]';
+  fxBtn.textContent = '[F3] FX: ' + (fxOverride || s.fx).toUpperCase();
+  if (announce) {
+    flash.style.opacity = '0.85';
+    setTimeout(() => flash.style.opacity = '0', 70 + Math.random() * 80);
+  }
+}
+applySkin(skinIndex, false);
+
+function cycleSkin() { fxOverride = null; applySkin(skinIndex + 1, true); }
+
+const FX_NAMES = Object.keys(FX);
+function cycleFx() {
+  const cur = fxOverride || SKINS[skinIndex].fx;
+  const next = FX_NAMES[(FX_NAMES.indexOf(cur) + 1) % FX_NAMES.length];
+  fxOverride = next;
+  setFx(next, SKINS[skinIndex].fxBlend);
+  applySkin(skinIndex, true);
+}
+
+// Direct-access list
+(function buildDirect() {
+  let html = '';
+  for (const p of PIECES) html += `<div><a href="${p.file}">${p.name}</a> <span class="dim">— ${p.tag}</span></div>`;
+  directEl.innerHTML = html;
+})();
+
+function weightedPick() {
+  const total = PIECES.reduce((s, p) => s + p.w, 0);
+  let r = Math.random() * total;
+  for (const p of PIECES) { r -= p.w; if (r <= 0) return p; }
+  return PIECES[PIECES.length - 1];
+}
+
+function line(text, cls, delay) {
+  return new Promise(res => setTimeout(() => {
+    const div = document.createElement('div');
+    if (cls) div.className = cls;
+    div.innerHTML = text;
+    logEl.appendChild(div);
+    res();
+  }, delay));
+}
+
+let currentPick = null;
+let timers = [];
+function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
+
+async function route() {
+  clearTimers();
+  logEl.innerHTML = '';
+  selEl.innerHTML = '';
+  cdEl.innerHTML = '';
+  rerollEl.style.display = 'none';
+  skinBtn.style.display = 'none';
+  fxBtn.style.display = 'none';
+
+  await line('Parsing visitor headers...', 'dim', 100);
+  await line('User-Agent: <span class="ok">HUMAN</span> (probably)', null, 350);
+  await line('Skin rolled: <span class="bright">' + SKINS[skinIndex].name + '</span> + <span class="wave1">' + (fxOverride || SKINS[skinIndex].fx).toUpperCase() + '</span> FX', 'dim', 300);
+  await line('Consulting the parser forest...', 'dim', 400);
+  await line('Selecting corruption vector <span class="cursor"></span>', null, 500);
+
+  currentPick = weightedPick();
+  const p = currentPick;
+
+  selEl.innerHTML = `⟶ <span class="bright">${p.name}</span> <span class="dim">[${p.tag}]</span>`;
+  await line('Destination locked. The forest has chosen.', 'dim', 300);
+
+  rerollEl.style.display = 'inline-block';
+  skinBtn.style.display = 'inline-block';
+  fxBtn.style.display = 'inline-block';
+
+  let n = 3;
+  cdEl.textContent = n;
+  const tick = () => {
+    n--;
+    if (n <= 0) {
+      cdEl.innerHTML = '<span class="err">⟲ ROUTING...</span>';
+      timers.push(setTimeout(() => { window.location.href = p.file; }, 600));
+    } else {
+      cdEl.textContent = n;
+      timers.push(setTimeout(tick, 1000));
+    }
+  };
+  timers.push(setTimeout(tick, 1000));
+}
+
+function reroll() { route(); }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') reroll();
+  if (e.key === 'F2') { e.preventDefault(); cycleSkin(); }
+  if (e.key === 'F3') { e.preventDefault(); cycleFx(); }
+});
+
+window.addEventListener('load', route);
+</script>
+
+</body>
+</html>
